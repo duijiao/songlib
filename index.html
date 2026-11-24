@@ -206,6 +206,22 @@ body {
   padding: 10px 10px max(10px, env(safe-area-inset-bottom));
   background: rgba(11,18,32,0.8); font-size: 13px; color: #9fb0cc;
 }
+/* 看图模式：歌词面板 + 多调切换 */
+.lightbox-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.lightbox-body .lightbox-stage { flex: 1; min-height: 0; min-width: 0; }
+.lightbox-lyrics { display: none; flex: 0 0 46%; min-height: 0; flex-direction: column; background: rgba(11,18,32,0.97); border-top: 1px solid rgba(255,255,255,0.14); }
+.lightbox.lyrics-open .lightbox-lyrics { display: flex; }
+.lightbox-lyrics-h { padding: 12px 18px 4px; font-size: 14px; font-weight: 650; color: #9fb0cc; flex: none; }
+.lightbox-lyrics-body { flex: 1; overflow-y: auto; padding: 4px 20px 20px; font-size: 16px; line-height: 2; white-space: pre-wrap; color: #e6ecf7; user-select: text; -webkit-user-select: text; -webkit-overflow-scrolling: touch; }
+.lightbox-lyrics-body.empty { color: #8294b0; font-size: 14px; text-align: center; padding-top: 28px; }
+@media (min-width: 900px) {
+  .lightbox-body { flex-direction: row; }
+  .lightbox-lyrics { flex: 0 0 380px; border-top: none; border-left: 1px solid rgba(255,255,255,0.14); }
+}
+.lightbox-keys { display: none; gap: 8px; overflow-x: auto; justify-content: safe center; padding: 8px 12px; background: rgba(11,18,32,0.8); border-top: 1px solid rgba(255,255,255,0.08); z-index: 2; scrollbar-width: none; }
+.lightbox-keys::-webkit-scrollbar { display: none; }
+.lightbox-keys button { flex: none; background: rgba(255,255,255,0.14); border: none; color: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.lightbox-keys button.on, .lightbox-bar button.on { background: var(--primary); }
 @media (max-width: 640px) { .lightbox-hide-m { display: none !important; } .lightbox-nav { width: 38px; height: 60px; } }
 
 /* ── Upload song modal ────────────────────────────── */
@@ -1347,6 +1363,123 @@ body { display: block; padding: 0; min-height: 100vh; }
 .song-lib-wcard.ranked .song-lib-wthumb-badge { left: auto; right: 8px; }
 /* 本周卡片显示 / 隐藏设置（筛选抽屉里） */
 .song-lib-filter-sec.gap + .song-lib-weekpref-bar { margin-bottom: 0; }
+
+/* ===== 诗歌本标签页（歌本分类，移植自专属歌谱搜索） ===== */
+.song-lib-books { display: none; }
+.song-lib-page.tab-books .song-lib-books { display: block; }
+.song-lib-page.tab-books .song-lib-search-wrap:not(.song-lib-bk-search),
+.song-lib-page.tab-books .song-lib-ds-switch,
+.song-lib-page.tab-books #songLibWeekHost,
+.song-lib-page.tab-books .song-lib-toolbar,
+.song-lib-page.tab-books .song-lib-grid,
+.song-lib-page.tab-books .song-lib-ds,
+.song-lib-page.tab-books .song-lib-foot-note,
+.song-lib-page.tab-books .song-lib-import-hint,
+.song-lib-page.tab-books #songLibSearchToggleBtn { display: none !important; }
+.song-lib-bk-top { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+.song-lib-bk-top .song-lib-bk-search { flex: 1; min-width: 0; margin: 0; }
+.song-lib-bk-admin { flex: none; display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--primary); background: var(--primary-light); color: var(--primary); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.song-lib-bk-admin[hidden] { display: none; }
+.song-lib-bk-count, .song-lib-bk-dcount { font-size: 13px; color: var(--text-3); margin: 2px 2px 10px; min-height: 18px; }
+.song-lib-bk-dcount { font-weight: 700; color: var(--text-1); margin-top: 14px; }
+.song-lib-bk-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 720px) { .song-lib-bk-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .song-lib-bk-grid { grid-template-columns: repeat(3, 1fr); } }
+.song-lib-bk-cover { position: relative; flex: none; width: 84px; aspect-ratio: 3/4; border-radius: 12px; overflow: hidden; background: var(--bg-subtle); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; color: var(--text-3); font-size: 11.5px; text-align: center; border: 1px solid var(--border-soft); }
+.song-lib-bk-cover.big { width: 104px; }
+.song-lib-bk-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .45s ease; }
+.song-lib-bk-cover img.ld { opacity: 1; }
+.song-lib-bk-cover svg { width: 30px; height: 30px; opacity: .55; }
+.song-lib-bk-cover:has(img:not(.ld)) span { display: none; }
+.song-lib-bk-cover.has-img svg, .song-lib-bk-cover.has-img span, .song-lib-bk-cover:has(img.ld) svg, .song-lib-bk-cover:has(img.ld) span { display: none; }
+.song-lib-bk-card { position: relative; display: flex; gap: 12px; background: #fff; border: 1px solid var(--border-soft); border-radius: 16px; padding: 12px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.04); transition: transform .2s, box-shadow .2s; animation: songLibBkIn .4s cubic-bezier(.2,.8,.2,1) backwards; }
+.song-lib-bk-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,0.09); }
+.song-lib-bk-card:active { transform: scale(.98); }
+@keyframes songLibBkIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.song-lib-bk-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.song-lib-bk-name { font-size: 16px; font-weight: 700; line-height: 1.35; color: var(--text-1); overflow-wrap: anywhere; padding-right: 26px; }
+.song-lib-bk-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.song-lib-bk-intro { font-size: 13px; color: var(--text-3); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.song-lib-bk-editbtn { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; border: none; border-radius: 50%; background: var(--primary-light); color: var(--primary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.song-lib-bk-skel { display: flex; gap: 12px; background: #fff; border: 1px solid var(--border-soft); border-radius: 16px; padding: 12px; }
+.song-lib-bk-skel .song-lib-bk-cover, .song-lib-bk-skel .ln { position: relative; overflow: hidden; background: #e9edf3; border: none; }
+.song-lib-bk-skel .ln { height: 14px; border-radius: 7px; }
+.song-lib-bk-skel .ln.s { width: 55%; } .song-lib-bk-skel .ln.xs { width: 35%; height: 12px; }
+.song-lib-bk-skel .song-lib-bk-info { gap: 9px; padding-top: 4px; }
+.song-lib-bk-skel .song-lib-bk-cover::after, .song-lib-bk-skel .ln::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.7) 50%, transparent 70%); transform: translateX(-100%); animation: songLibBkSweep 1.3s ease-in-out infinite; animation-delay: var(--d, 0ms); }
+@keyframes songLibBkSweep { to { transform: translateX(100%); } }
+.song-lib-bk-retry { margin-top: 10px; border: 1.5px solid var(--primary); background: var(--primary-light); color: var(--primary); border-radius: 999px; padding: 6px 18px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.song-lib-bk-detail { animation: songLibBkIn .35s ease-out; }
+.song-lib-bk-dtop { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.song-lib-bk-back { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--border-soft); background: #fff; color: var(--text-2); border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.song-lib-bk-back[hidden] { display: none; }
+.song-lib-bk-dmain { display: flex; gap: 14px; }
+.song-lib-bk-dt { min-width: 0; flex: 1; }
+.song-lib-bk-dt h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.3; color: var(--text-1); }
+.song-lib-bk-dintro { margin: 8px 0 0; font-size: 14px; color: var(--text-3); white-space: pre-wrap; line-height: 1.55; }
+.song-lib-bk-find { display: flex; gap: 8px; margin-top: 14px; }
+.song-lib-bk-find input { flex: 1; min-width: 0; border: 1.5px solid var(--border-soft); border-radius: 999px; padding: 9px 16px; font-size: 14px; font-family: inherit; outline: none; background: #fff; }
+.song-lib-bk-find input:focus { border-color: var(--primary); }
+.song-lib-bk-find button { flex: none; border: none; border-radius: 999px; padding: 0 22px; background: var(--primary); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; font-family: inherit; }
+/* 歌本管理弹窗 */
+.song-lib-bk-adm { background: #fff; width: min(520px, 100%); max-height: 90vh; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 18px 18px 24px; display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 600px) { #songLibBkAdminOverlay.open { align-items: center; } .song-lib-bk-adm { border-radius: 20px; } }
+.song-lib-bk-adm-h { display: flex; justify-content: space-between; align-items: center; font-size: 16px; }
+.song-lib-bk-adm-h button { border: none; background: var(--bg-subtle); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-family: inherit; }
+.song-lib-bk-adm label { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--text-3); }
+.song-lib-bk-adm input, .song-lib-bk-adm textarea { border: 1.5px solid var(--border-soft); border-radius: 10px; padding: 9px 12px; font-size: 14px; font-family: inherit; outline: none; font-weight: 400; color: var(--text-1); background: #fff; }
+.song-lib-bk-adm input:focus, .song-lib-bk-adm textarea:focus { border-color: var(--primary); }
+.song-lib-bk-adm-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; }
+.song-lib-bk-adm-inline { display: flex; gap: 8px; } .song-lib-bk-adm-inline input { flex: 1; min-width: 0; }
+.song-lib-bk-adm-inline button, .song-lib-bk-adm-btns button { border: 1.5px solid var(--border-soft); background: #fff; border-radius: 10px; padding: 8px 16px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--text-2); }
+.song-lib-bk-adm-btns { display: flex; gap: 8px; }
+.song-lib-bk-adm-btns .primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.song-lib-bk-adm-btns .danger { color: #d9534f; margin-left: auto; }
+.song-lib-bk-adm-prev { display: flex; align-items: flex-end; gap: 10px; font-size: 12px; color: var(--text-3); }
+.song-lib-bk-adm-prev .song-lib-bk-cover { width: 72px; }
+.song-lib-bk-adm-msg { font-size: 12.5px; color: var(--text-3); min-height: 16px; }
+.song-lib-bk-adm details { font-size: 12px; color: var(--text-3); } .song-lib-bk-adm pre { white-space: pre-wrap; background: var(--bg-subtle); padding: 8px; border-radius: 8px; margin-top: 6px; }
+
+/* ===== 主题标签（样式与诗歌本胶囊一致，颜色略有区分） ===== */
+.song-lib-wpill.tag, .song-lib-tagpill { background: #eef1ff; color: #4a5fc1; border-radius: 999px; padding: 1px 8px; font-weight: 600; font-size: 11px; white-space: nowrap; }
+.song-lib-wpill.tag::before, .song-lib-tagpill::before { content: '#'; opacity: .55; margin-right: 1px; }
+.song-lib-wpill.tag.more::before, .song-lib-tagpill.more::before { content: ''; }
+.song-lib-card-tags, .song-lib-detail-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.song-lib-card-tags { margin-top: 3px; }
+.song-lib-detail-tags { justify-content: center; margin-top: 8px; }
+.song-lib-detail-tags .song-lib-tagpill { font-size: 12px; padding: 2px 10px; }
+.song-lib-tag-empty { font-size: 12.5px; color: var(--text-4); }
+.song-lib-tagpick { margin-top: 8px; }
+.song-lib-tagpick-l { font-size: 12px; font-weight: 600; color: var(--text-3); margin-bottom: 6px; }
+.song-lib-tagpick-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.song-lib-tagchip { border: 1.5px solid rgba(0,0,0,0.08); background: #fff; color: var(--text-3); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+.song-lib-tagchip.on { background: #eef1ff; border-color: #4a5fc1; color: #4a5fc1; }
+.song-lib-tagchip.add { border-style: dashed; font-weight: 500; }
+
+/* ===== 批量选择 ===== */
+.song-lib-card, .song-lib-wcard { position: relative; }
+.song-lib-selmark { display: none; position: absolute; top: 8px; left: 8px; z-index: 3; width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,0.28); color: transparent; align-items: center; justify-content: center; font-size: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+.song-lib-page.sel-mode .song-lib-selmark { display: flex; }
+.song-lib-card .song-lib-selmark { top: 50%; transform: translateY(-50%); left: auto; right: 10px; }
+.song-lib-card.sel .song-lib-selmark, .song-lib-wcard.sel .song-lib-selmark { background: var(--primary); color: #fff; }
+.song-lib-card.sel { border-color: var(--primary); background: var(--primary-light); }
+.song-lib-wcard.sel { outline: 2.5px solid var(--primary); outline-offset: -2px; }
+.song-lib-page.sel-mode .song-lib-card-actions, .song-lib-page.sel-mode .song-lib-card-fav-btn { pointer-events: none; opacity: .35; }
+.song-lib-page.sel-mode .song-lib-main { padding-bottom: 96px; }
+.song-lib-selbar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 380; align-items: center; gap: 10px; padding: 10px 14px max(10px, env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--border-soft); box-shadow: 0 -6px 20px rgba(0,0,0,0.08); }
+.song-lib-selbar.show { display: flex; }
+.song-lib-selcount { flex: 1; text-align: center; font-size: 14px; font-weight: 650; color: var(--text-1); }
+.song-lib-selbar button { border: 1.5px solid var(--border-soft); background: #fff; color: var(--text-2); border-radius: 999px; padding: 8px 14px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; }
+.song-lib-selbar button.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+#songLibBatchBtn.active { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+.song-lib-filter-chip.active.rm { background: #fdecea; border-color: #d9534f; color: #d9534f; text-decoration: line-through; }
+.song-lib-batch-sum { margin: 14px 2px 4px; font-size: 12.5px; color: var(--text-3); line-height: 1.5; }
+/* 选歌窗口：按标签筛选 */
+.week-pick-tagbar { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 8px; padding-bottom: 2px; scrollbar-width: none; }
+.week-pick-tagbar::-webkit-scrollbar { display: none; }
+.week-pick-tag { flex: none; border: 1.5px solid rgba(0,0,0,0.08); background: #fff; color: var(--text-3); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.week-pick-tag.on { background: #eef1ff; border-color: #4a5fc1; color: #4a5fc1; }
+.week-pick-tags { display: block; font-size: 11px; font-weight: 500; color: #4a5fc1; margin-top: 1px; }
 </style>
 </head>
 <body>
@@ -1387,6 +1520,7 @@ body { display: block; padding: 0; min-height: 100vh; }
       <div class="song-lib-toolbar" id="songLibToolbar">
         <div class="song-lib-count" id="songLibCount"></div>
         <button class="song-lib-filter-btn" id="songLibFilterBtn" onclick="openSongLibFilter()"><i class="ti ti-adjustments-horizontal"></i><span id="songLibFilterBtnLabel">筛选</span></button>
+        <button class="song-lib-filter-btn" id="songLibBatchBtn" hidden onclick="songLibBatchToggle()"><i class="ti ti-checkbox"></i><span>批量</span></button>
         <div class="song-lib-view-switch" id="songLibViewSwitch">
           <button data-view="waterfall" onclick="setSongLibViewMode('waterfall')" title="瀑布流" aria-label="瀑布流"><i class="ti ti-layout-dashboard"></i></button>
           <button data-view="list" onclick="setSongLibViewMode('list')" title="列表" aria-label="列表"><i class="ti ti-list"></i></button>
@@ -1401,8 +1535,59 @@ body { display: block; padding: 0; min-height: 100vh; }
         <div class="song-lib-ds-list" id="songLibDsList"></div>
         <button class="song-lib-ds-more" id="songLibDsMore" hidden="" onclick="songLibDsLoadMore()">加载更多</button>
       </div>
+      <!-- 诗歌本：歌本列表 → 歌本详情（独立标签页，不嵌在专属搜索里） -->
+      <div class="song-lib-books" id="songLibBooksView">
+        <div id="songLibBkList">
+          <div class="song-lib-bk-top">
+            <div class="song-lib-search-wrap song-lib-bk-search" style="display:flex">
+              <i class="ti ti-search song-lib-search-icon"></i>
+              <input class="song-lib-search-input" id="songLibBkSearch" type="text" placeholder="搜索歌本名或编号…" oninput="onSongLibBookSearch()" autocomplete="off">
+              <button class="song-lib-search-clear" id="songLibBkSearchClear" onclick="clearSongLibBookSearch()"><i class="ti ti-x"></i></button>
+            </div>
+            <button class="song-lib-bk-admin" id="songLibBkAdminBtn" hidden onclick="songLibBookAdminOpen()"><i class="ti ti-settings"></i>歌本管理</button>
+          </div>
+          <div class="song-lib-bk-count" id="songLibBkCount"></div>
+          <div class="song-lib-bk-grid" id="songLibBkGrid"></div>
+        </div>
+        <section class="song-lib-bk-detail" id="songLibBkDetail" hidden>
+          <div class="song-lib-bk-dtop">
+            <button class="song-lib-bk-back" onclick="songLibBookBack()"><i class="ti ti-chevron-left"></i>返回歌本</button>
+            <button class="song-lib-bk-back" id="songLibBkEdit" hidden onclick="songLibBookAdminOpen(songLibBookCur && songLibBookCur.id)"><i class="ti ti-pencil"></i>编辑本书资料</button>
+          </div>
+          <div class="song-lib-bk-dmain">
+            <div class="song-lib-bk-cover big" id="songLibBkdCover"></div>
+            <div class="song-lib-bk-dt"><h2 id="songLibBkdName"></h2><div class="song-lib-bk-meta" id="songLibBkdMeta"></div><p class="song-lib-bk-dintro" id="songLibBkdIntro"></p></div>
+          </div>
+          <form class="song-lib-bk-find" onsubmit="songLibBookFind(event)">
+            <input id="songLibBkdNo" inputmode="numeric" placeholder="输入第几首，如 123（留空显示本书歌曲）" autocomplete="off">
+            <button type="submit">查找</button>
+          </form>
+          <div class="song-lib-bk-dcount" id="songLibBkdCount"></div>
+          <div class="song-lib-ds-status" id="songLibBkdStatus"></div>
+          <div class="song-lib-ds-list view-wf" id="songLibBkSongs"></div>
+        </section>
+      </div>
       <div class="song-lib-foot-note">收录历史使用过的诗歌，点击可查看使用记录</div>
     </div>
+  </div>
+</div>
+
+<!-- ── 诗歌本：歌本管理（管理员） ───────────────────── -->
+<div class="modal-overlay" id="songLibBkAdminOverlay" onclick="songLibBookAdminClose(event)">
+  <div class="song-lib-bk-adm" onclick="event.stopPropagation()">
+    <div class="song-lib-bk-adm-h"><strong>歌本管理</strong><button type="button" onclick="songLibBookAdminClose({target:{id:'songLibBkAdminOverlay'}})">关闭</button></div>
+    <div class="song-lib-bk-adm-grid">
+      <label>歌本 ID<input id="songLibBkAdmId" type="number" min="0" placeholder="与诗歌本接口的 bookid 一致"></label>
+      <label>歌本名<input id="songLibBkAdmName" placeholder="如 灵栖清泉"></label>
+    </div>
+    <label>歌本介绍<textarea id="songLibBkAdmIntro" rows="3" placeholder="简单介绍这本歌本"></textarea></label>
+    <label>封面图（链接，或点右侧上传，自动压缩）
+      <div class="song-lib-bk-adm-inline"><input id="songLibBkAdmCover" placeholder="https://… 或留空" spellcheck="false" oninput="songLibBookAdminPrev()"><button type="button" onclick="document.getElementById('songLibBkAdmFile').click()">上传</button><input id="songLibBkAdmFile" type="file" accept="image/*" hidden onchange="songLibBookAdminUpload(this)"></div>
+    </label>
+    <div class="song-lib-bk-adm-prev"><div class="song-lib-bk-cover" id="songLibBkAdmPrev"></div><span id="songLibBkAdmSize"></span></div>
+    <div class="song-lib-bk-adm-btns"><button type="button" class="primary" id="songLibBkAdmSave" onclick="songLibBookAdminSave()">保存</button><button type="button" onclick="songLibBookAdminFill(null);songLibBookAdminMsg('填写新歌本资料后保存。')">新建</button><button type="button" class="danger" onclick="songLibBookAdminDelete()">删除</button></div>
+    <div class="song-lib-bk-adm-msg" id="songLibBkAdmMsg"></div>
+    <details><summary>首次使用：需在 Supabase 执行一次的 SQL</summary><pre>alter table church_app_state add column if not exists song_books jsonb default '[]'::jsonb;</pre></details>
   </div>
 </div>
 
@@ -1422,7 +1607,32 @@ body { display: block; padding: 0; min-height: 100vh; }
     <div class="song-lib-filter-chips" id="songLibWeekPrefBar"></div>
     <div class="song-lib-filter-sec gap">诗歌本</div>
     <div class="song-lib-filter-chips" id="songLibFilterBar"></div>
+    <div class="song-lib-filter-sec gap">主题标签（可多选，歌曲需同时包含所选标签）</div>
+    <div class="song-lib-filter-chips" id="songLibTagBar"></div>
     <div class="drawer-actions"><button class="btn-save" onclick="closeSongLibFilter()">完成</button></div>
+  </div>
+</div>
+
+<!-- ── 批量选择：底部操作条 ── -->
+<div class="song-lib-selbar" id="songLibSelBar">
+  <button type="button" class="ghost" onclick="songLibBatchExit()">取消</button>
+  <span class="song-lib-selcount" id="songLibSelCount">已选 0 首</span>
+  <button type="button" class="ghost" onclick="songLibSelAll()" id="songLibSelAllBtn">全选</button>
+  <button type="button" class="primary" onclick="songLibBatchOpen()"><i class="ti ti-tags"></i>设置标签</button>
+</div>
+<!-- ── 批量设置：加标签 / 去标签 / 诗歌本 ── -->
+<div class="modal-overlay" id="songLibBatchOverlay" onclick="songLibBatchClose(event)">
+  <div class="song-lib-filter-drawer" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto">
+    <div class="picker-handle"></div>
+    <div class="song-lib-filter-head"><div class="song-lib-filter-title" id="songLibBatchTitle">批量设置</div></div>
+    <div class="song-lib-filter-sec">添加标签（点选，所选歌曲都会加上）</div>
+    <div class="song-lib-filter-chips" id="songLibBatchAdd"></div>
+    <div class="song-lib-filter-sec gap">移除标签（所选歌曲里已有的标签，点选后会去掉）</div>
+    <div class="song-lib-filter-chips" id="songLibBatchRemove"></div>
+    <div class="song-lib-filter-sec gap">设置诗歌本（留空表示不修改）</div>
+    <input class="add-song-name-input" id="songLibBatchSongbook" list="songLibSongbookDatalist" placeholder="如：生命圣诗、赞美之泉">
+    <div class="song-lib-batch-sum" id="songLibBatchSum"></div>
+    <div class="drawer-actions"><button class="btn-cancel" onclick="songLibBatchClose()">取消</button><button class="btn-save" id="songLibBatchApply" onclick="songLibBatchApply()">应用</button></div>
   </div>
 </div>
 
@@ -1433,6 +1643,7 @@ body { display: block; padding: 0; min-height: 100vh; }
     <div class="week-pick-title">选本周诗歌</div>
     <div class="week-pick-sub" id="weekPickSub"></div>
     <input class="week-pick-search" id="weekPickSearch" type="text" placeholder="搜索诗歌库…" oninput="renderWeekPick()" autocomplete="off">
+    <div class="week-pick-tagbar" id="weekPickTagBar"></div>
     <div class="week-pick-chips" id="weekPickChips"></div>
     <div class="week-pick-list" id="weekPickList"></div>
     <div class="drawer-actions">
@@ -1529,6 +1740,7 @@ body { display: block; padding: 0; min-height: 100vh; }
       <datalist id="songLibBandDatalist"></datalist>
       <input class="add-song-name-input" id="songLibAddSongbook" list="songLibSongbookDatalist" placeholder="诗歌本（可选，如：生命圣诗、赞美之泉）" style="margin-top:8px">
       <datalist id="songLibSongbookDatalist"></datalist>
+      <div class="song-lib-tagpick" id="songLibAddTags"></div>
       <input class="add-song-name-input" id="songLibAddKeyLabel" placeholder="调（可选，如：C调、原调）" style="margin-top:8px">
       <input class="add-song-url-input" id="songLibAddUrl" placeholder="图片直链 URL（可选）">
       <div class="add-song-or">— 或 —</div>
@@ -1765,17 +1977,25 @@ body { display: block; padding: 0; min-height: 100vh; }
   <div class="lightbox-bar">
     <div class="lightbox-title" id="lightboxTitle"></div>
     <div class="lightbox-acts">
+      <button type="button" id="lightboxLyricsBtn" style="display:none" onclick="lightboxToggleLyrics()" title="查看歌词（L）"><i class="ti ti-file-text"></i><span>歌词</span></button>
       <button type="button" id="lightboxSave" onclick="downloadLightboxImage()" title="保存图片"><i class="ti ti-download"></i><span>保存</span></button>
       <button type="button" id="lightboxOpen" class="lightbox-hide-m" onclick="openLightboxOriginal()">新窗口原图</button>
       <button type="button" id="lightboxClose" onclick="closeLightbox()">✕ 关闭</button>
     </div>
   </div>
+  <div class="lightbox-body">
   <div class="lightbox-stage" id="lightboxStage">
     <img id="lightboxImg" src="" alt="歌谱原图" draggable="false" referrerpolicy="no-referrer">
     <div class="lightbox-msg" id="lightboxMsg"></div>
     <button type="button" class="lightbox-nav prev" id="lightboxPrev" aria-label="上一首"><i class="ti ti-chevron-left"></i></button>
     <button type="button" class="lightbox-nav next" id="lightboxNext" aria-label="下一首"><i class="ti ti-chevron-right"></i></button>
   </div>
+  <aside class="lightbox-lyrics" id="lightboxLyrics">
+    <div class="lightbox-lyrics-h" id="lightboxLyricsTitle"></div>
+    <div class="lightbox-lyrics-body" id="lightboxLyricsBody"></div>
+  </aside>
+  </div>
+  <div class="lightbox-keys" id="lightboxKeys"></div>
   <div class="lightbox-foot">
     <button type="button" onclick="lightboxZoomCenter(1/1.4)">－</button>
     <span id="lightboxZoom">100%</span>
@@ -1922,6 +2142,34 @@ function persistSongLibSongbooks() {
 async function syncSongLibSongbooksToRemote() {
   try { await syncRemoteField('song_lib_songbooks', songLibSongbooks); } catch (e) {}
 }
+
+// ── 主题标签：每首歌可以有多个；标签库可自定义（新增 / 重命名 / 删除），样式与「诗歌本」一致 ──
+const LS_SONG_LIB_TAGS = 'churchSongLibTags';
+let songLibTags = [];          // 标签库（含还没被任何歌使用的标签）
+let songLibTagFilter = [];     // 筛选：选中的标签（歌曲需同时包含）
+function normalizeSongLibTagList(raw) {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set(), out = [];
+  raw.forEach(c => {
+    const v = String(c || '').trim().slice(0, 20);
+    if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); out.push(v); }
+  });
+  return out;
+}
+function loadSongLibTags() {
+  try { const raw = localStorage.getItem(LS_SONG_LIB_TAGS); songLibTags = normalizeSongLibTagList(raw ? JSON.parse(raw) : []); }
+  catch (e) { songLibTags = []; }
+}
+function persistSongLibTags() { try { localStorage.setItem(LS_SONG_LIB_TAGS, JSON.stringify(songLibTags)); } catch (e) {} }
+async function syncSongLibTagsToRemote() { try { await syncRemoteField('song_lib_tags', songLibTags); } catch (e) {} }
+function getSongLibTags() {
+  const set = new Map();
+  songLibTags.forEach(t => set.set(t.toLowerCase(), t));
+  songLibrary.forEach(s => (s.tags || []).forEach(t => { if (!set.has(t.toLowerCase())) set.set(t.toLowerCase(), t); }));
+  return [...set.values()].sort((a, b) => a.localeCompare(b, 'zh'));
+}
+function songLibHasTag(s, t) { const k = t.toLowerCase(); return (s.tags || []).some(x => x.toLowerCase() === k); }
+function songLibTagCount(t) { return songLibrary.filter(s => songLibHasTag(s, t)).length; }
 
 const LS_SONGLIB_SB_CONFIG = 'churchSongLibSbConfig';
 
@@ -2070,6 +2318,7 @@ function normalizeSongLibrary(raw) {
       category: (item?.category || '').trim(),
       band: (item?.band || '').trim(),
       songbook: (item?.songbook || '').trim(),
+      tags: normalizeSongLibTagList(item?.tags),
       lyrics: item?.lyrics || '',
       lyricsLrc: item?.lyricsLrc || '',
       keys,
@@ -2094,6 +2343,7 @@ function ensureSongInLibrary(title, src) {
     category: '',
     band: '',
     songbook: '',
+    tags: [],
     lyrics: '',
     lyricsLrc: '',
     keys: src ? [{ id: genSongLibId(), label: '', src }] : [],
@@ -2263,12 +2513,12 @@ let selectedSunday=null, pickerYear=new Date().getFullYear(), headerCollapsed=fa
 
 let lightboxSongs=[], lightboxIndex=0;
 // ── 大图查看器（看图模式）：缩放 / 拖动 / 双击放大 / 双指缩放 / 滑动切歌 / 滚轮 / 键盘 ──
-const lbv={open:false,gen:0,scale:1,x:0,y:0,pts:new Map(),pinchD:0,pinchS:1,moved:false,lastTap:0,drag:null,swiping:false,bound:false,bodyOverflow:''};
+const lbv={lyrics:false,open:false,gen:0,scale:1,x:0,y:0,pts:new Map(),pinchD:0,pinchS:1,moved:false,lastTap:0,drag:null,swiping:false,bound:false,bodyOverflow:''};
 function lbvEl(id){ return document.getElementById(id); }
 function lbvClamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 // 通用底层方法：传入任意 {title, src} 数组与起始索引即可打开大图查看器，
 function openLightboxWithList(list, index){
-  lightboxSongs=(list||[]).filter(s=>s && s.src);
+  lightboxSongs=(list||[]).filter(s=>s && s.src).map(s=>Object.assign({},s));   // 复制一份：切换调时不会改动原数据
   if(!lightboxSongs.length) return;
   lightboxIndex=Math.max(0, Math.min(index||0, lightboxSongs.length-1));
   lightboxBind();
@@ -2305,6 +2555,7 @@ function showLightboxImage(force){
   lbvEl('lightboxTitle').textContent=s.title||'';
   const total=lightboxSongs.length;
   lbvEl('lightboxCounter').textContent=total>1?`${lightboxIndex+1} / ${total}`:'';
+  lbvRenderExtras(s);
   lbvEl('lightboxPrev').style.display=total>1?'flex':'none';
   lbvEl('lightboxNext').style.display=total>1?'flex':'none';
   lbvEl('lightboxPrev').disabled=lightboxIndex<=0;
@@ -2320,6 +2571,58 @@ function showLightboxImage(force){
     const n=lightboxSongs[k];
     if(n && n.src && !/^data:/.test(n.src)){ const im=new Image(); im.referrerPolicy='no-referrer'; im.src=n.src; }
   });
+}
+// ── 看图模式：歌词 + 多调切换（歌曲在诗歌库里能对上号时才有；专属搜索的结果没有）──
+function lbvEntry(s){
+  if(!s || s.noLib) return null;
+  let e=null;
+  if(s.songId) e=songLibrary.find(x=>x.id===s.songId)||null;
+  if(!e){
+    const t=String(s.title||'');
+    e=findSongLibEntryByTitle(t) || findSongLibEntryByTitle(t.replace(/\s*[（(][^（()）]*[）)]\s*$/,''));
+  }
+  if(e) s.songId=e.id;
+  return e;
+}
+function lbvRenderExtras(s){
+  const e=lbvEntry(s);
+  const btn=lbvEl('lightboxLyricsBtn');
+  btn.style.display=e?'':'none';
+  const open=!!(e && lbv.lyrics);
+  btn.classList.toggle('on', open);
+  lbvEl('lightbox').classList.toggle('lyrics-open', open);
+  const keys=e?e.keys.filter(k=>k && k.src):[];
+  const kb=lbvEl('lightboxKeys');
+  if(keys.length>1){
+    const ai=keys.findIndex(k=>k.src===s.src);
+    kb.innerHTML=keys.map((k,i)=>`<button type="button" class="${i===ai?'on':''}" onclick="lightboxPickKey(${i})">${escapeHtml(k.label?k.label:(keys.length>1?'默认':''))}</button>`).join('');
+    kb.style.display='flex';
+  } else { kb.style.display='none'; kb.innerHTML=''; }
+  if(open){
+    lbvEl('lightboxLyricsTitle').textContent=e.title+' · 歌词';
+    const body=lbvEl('lightboxLyricsBody'), txt=(e.lyrics||'').trim();
+    body.classList.toggle('empty', !txt);
+    body.textContent=txt || '这首诗歌还没有录入歌词，可在诗歌库详情页添加';
+    body.scrollTop=0;
+  }
+}
+function lightboxToggleLyrics(){
+  const s=lightboxSongs[lightboxIndex]; if(!s || !lbvEntry(s)) return;
+  lbv.lyrics=!lbv.lyrics;
+  lightboxResetView();
+  lbvRenderExtras(s);
+}
+function lightboxPickKey(i){
+  const s=lightboxSongs[lightboxIndex], e=lbvEntry(s); if(!e) return;
+  const keys=e.keys.filter(k=>k && k.src), k=keys[i]; if(!k) return;
+  s.src=k.src; s.title=`${e.title}${k.label?'（'+k.label+'）':''}`;
+  showLightboxImage();
+}
+function lightboxStepKey(d){
+  const s=lightboxSongs[lightboxIndex], e=lbvEntry(s); if(!e) return;
+  const keys=e.keys.filter(k=>k && k.src); if(keys.length<2) return;
+  const cur=Math.max(0, keys.findIndex(k=>k.src===s.src));
+  lightboxPickKey((cur+d+keys.length)%keys.length);
 }
 function stepLightbox(delta){
   const newIdx=lightboxIndex+delta;
@@ -2338,9 +2641,13 @@ function onLightboxKeydown(e){
   else if(k==='+'||k==='=') lightboxZoomCenter(1.4);
   else if(k==='-') lightboxZoomCenter(1/1.4);
   else if(k==='0') lightboxResetView();
+  else if(k==='l'||k==='L') lightboxToggleLyrics();
+  else if(k==='ArrowUp'){ e.preventDefault(); lightboxStepKey(-1); }
+  else if(k==='ArrowDown'){ e.preventDefault(); lightboxStepKey(1); }
 }
 function closeLightbox(){
-  lbv.open=false; lbv.gen++;
+  lbv.open=false; lbv.gen++; lbv.lyrics=false;
+  lbvEl('lightbox').classList.remove('lyrics-open');
   lbvEl('lightbox').classList.remove('open');
   document.removeEventListener('keydown', onLightboxKeydown);
   document.body.style.overflow=lbv.bodyOverflow||'';
@@ -2450,7 +2757,7 @@ let songLibCategoryFilter = '';
 
 let songLibSongbookFilter = '';
 
-let songLibTab = 'all'; // 'all'（首页）| 'favorite' | 'recent'
+let songLibTab = 'all'; // 'all'（首页）| 'favorite' | 'recent' | 'books'（诗歌本）
 // 排序：created = 收入时间；pinyin = 拼音首字母；used = 最近使用时间（取自每周排班）
 let songLibSortKey = 'created', songLibSortReverse = false;
 try {
@@ -2463,7 +2770,7 @@ function openSongLibrary(){
   document.getElementById('songLibSearchInput').value = '';
   songLibSearchKeyword = '';
   songLibCategoryFilter = '';
-  songLibSongbookFilter = '';
+  songLibSongbookFilter = ''; songLibTagFilter = [];
   songLibTab = 'all';
   songLibSearchOpen = false;
   songLibSearchMode = 'lib';
@@ -2488,7 +2795,8 @@ function renderSongLibTabs(){
   const tabs = [
     { id: 'all', label: '首页' },
     { id: 'recent', label: '最近使用' },
-    { id: 'favorite', label: '我的收藏' },
+    { id: 'books', label: '诗歌本' },
+    { id: 'favorite', label: '我的收藏' },   // 放在最右边
   ];
   wrap.innerHTML = tabs.map(t =>
     `<button class="song-lib-tab${songLibTab === t.id ? ' active' : ''}" onclick="setSongLibTab('${t.id}')">${t.label}</button>`
@@ -2510,6 +2818,7 @@ function setSongLibTab(tab){
   updateSongLibSearchUI();
   renderSongLibFilterBar();
   renderSongLibraryGrid();
+  if (tab === 'books') songLibBooksEnter();
 }
 // 首页：搜索框常驻；其他标签：隐藏搜索框，右上角出现放大镜，点开才显示
 function updateSongLibSearchUI(){
@@ -2650,6 +2959,7 @@ function openSongLibAdd(){
   document.getElementById('songLibAddKeyLabel').value = '';
   document.getElementById('songLibAddUrl').value = '';
   document.getElementById('songLibAddLyrics').value = '';
+  songLibTagSel.add = []; renderSongLibTagPicker('add');
   document.getElementById('songLibAddFileInput').value = '';
   songLibAddPendingSrc = '';
   document.getElementById('songLibAddPreview').classList.remove('show');
@@ -2739,6 +3049,7 @@ async function submitSongLibAdd(){
     entry.category = category;
     entry.band = band;
     entry.songbook = songbook;
+    entry.tags = normalizeSongLibTagList(songLibTagSel.add);
     entry.lyrics = lyrics;
     if (finalSrc) entry.keys.push({ id: genSongLibId(), label: keyLabel, src: finalSrc });
     persistSongLibrary();
@@ -2804,6 +3115,7 @@ function renderSongLibFilterBar(){
   const wp = document.getElementById('songLibWeekPrefBar');
   if (wp) wp.innerHTML = [['show', 'ti-eye', '显示'], ['hide', 'ti-eye-off', '隐藏']].map(([v, ic, t]) =>
     `<button class="song-lib-filter-chip${songLibWeekCardPref === v ? ' active' : ''}" onclick="setSongLibWeekCardPref('${v}')"><i class="ti ${ic}"></i>${t}</button>`).join('');
+  renderSongLibTagBar();
   const options = getSongLibSongbookChipOptions();
   const countOf = sb => sb ? songLibrary.filter(s => s.songbook === sb).length : songLibrary.length;
   const chips = [{ label: '全部', value: '' }, ...options.map(sb => ({ label: sb, value: sb }))];
@@ -2820,8 +3132,9 @@ function renderSongLibFilterBar(){
   if (btn) {
     const sortActive = songLibSortKey !== 'created' || songLibSortReverse;
     const sortLabel = (SONGLIB_SORTS.find(x => x.id === songLibSortKey) || SONGLIB_SORTS[0]).label;
-    btn.classList.toggle('active', !!songLibSongbookFilter || sortActive);
-    document.getElementById('songLibFilterBtnLabel').textContent = songLibSongbookFilter || (sortActive ? sortLabel : '筛选');
+    const tagLabel = songLibTagFilter.length === 1 ? songLibTagFilter[0] : (songLibTagFilter.length ? songLibTagFilter.length + '个标签' : '');
+    btn.classList.toggle('active', !!songLibSongbookFilter || !!songLibTagFilter.length || sortActive);
+    document.getElementById('songLibFilterBtnLabel').textContent = songLibSongbookFilter || tagLabel || (sortActive ? sortLabel : '筛选');
   }
 }
 // ── 排序：收入时间 / 拼音首字母 / 最近使用时间 ──
@@ -3042,7 +3355,7 @@ function closeSongLibFilter(e){
 }
 
 function resetSongLibFilter(){
-  songLibSongbookFilter = ''; songLibCategoryFilter = '';
+  songLibSongbookFilter = ''; songLibCategoryFilter = ''; songLibTagFilter = [];
   songLibSortKey = 'created'; songLibSortReverse = false; songLibCountScope = 'year'; persistSongLibSort();
   renderSongLibFilterBar();
   renderSongLibraryGrid();
@@ -3120,6 +3433,253 @@ async function deleteSongLibCategory(cat){
   showToast(`✅ 已删除分类「${cat}」${changed ? `，${changed} 首歌曲的分类已清空` : ''}`);
   await syncSongLibCategoriesToRemote();
   if (changed) await syncSongLibraryToRemote();
+}
+
+// ── 主题标签：筛选抽屉里的标签条（管理员可新增 / 重命名 / 删除）──
+function renderSongLibTagBar(){
+  const bar = document.getElementById('songLibTagBar');
+  if (!bar) return;
+  const tags = getSongLibTags();
+  const allActive = !songLibTagFilter.length;
+  bar.innerHTML = `<button class="song-lib-filter-chip${allActive ? ' active' : ''}" data-tagact="clear">全部<small>${songLibrary.length}</small></button>` +
+    tags.map(t => {
+      const on = songLibTagFilter.some(x => x.toLowerCase() === t.toLowerCase());
+      const ico = isAdmin ? `<span class="song-lib-filter-chip-ico" data-tagact="rename" title="重命名标签"><i class="ti ti-pencil"></i></span><span class="song-lib-filter-chip-ico" data-tagact="delete" title="删除标签"><i class="ti ti-x"></i></span>` : '';
+      return `<button class="song-lib-filter-chip${on ? ' active' : ''}" data-tag="${escapeHtml(t)}" data-tagact="toggle">${escapeHtml(t)}<small>${songLibTagCount(t)}</small>${ico}</button>`;
+    }).join('') +
+    (isAdmin ? `<button class="song-lib-filter-chip add" data-tagact="add"><i class="ti ti-plus"></i>标签</button>` : '') +
+    (!tags.length && !isAdmin ? '<span class="song-lib-tag-empty">还没有主题标签</span>' : '');
+  if (!bar._bound) {
+    bar._bound = true;
+    bar.addEventListener('click', e => {
+      const act = e.target.closest('[data-tagact]'); if (!act) return;
+      const chip = act.closest('[data-tag]'), tag = chip ? chip.dataset.tag : '';
+      e.stopPropagation();
+      const a = act.dataset.tagact;
+      if (a === 'clear') { songLibTagFilter = []; songLibRefreshAfterTagFilter(); }
+      else if (a === 'toggle') {
+        const i = songLibTagFilter.findIndex(x => x.toLowerCase() === tag.toLowerCase());
+        if (i >= 0) songLibTagFilter.splice(i, 1); else songLibTagFilter.push(tag);
+        songLibRefreshAfterTagFilter();
+      }
+      else if (a === 'rename') renameSongLibTag(tag);
+      else if (a === 'delete') deleteSongLibTag(tag);
+      else if (a === 'add') addSongLibTagPrompt();
+    });
+  }
+}
+function songLibRefreshAfterTagFilter(){ renderSongLibFilterBar(); renderSongLibraryGrid(); }
+async function addSongLibTagPrompt(){
+  if (!isAdmin) return;
+  const v = songLibTagAddCore((prompt('新增主题标签（如：感恩、圣餐、圣诞、盼望）：') || ''));
+  if (v) { showToast(`✅ 已添加标签「${v}」`); }
+}
+// 新增一个标签到标签库（已存在就返回已有的写法）；不弹窗，供多处复用
+function songLibTagAddCore(raw){
+  const v = String(raw || '').trim().slice(0, 20);
+  if (!v) return '';
+  const exist = getSongLibTags().find(t => t.toLowerCase() === v.toLowerCase());
+  if (exist) return exist;
+  songLibTags.push(v);
+  persistSongLibTags();
+  renderSongLibFilterBar();
+  syncSongLibTagsToRemote();
+  return v;
+}
+async function renameSongLibTag(oldT){
+  if (!isAdmin) return;
+  const val = prompt(`将标签「${oldT}」重命名为：`, oldT);
+  if (val === null) return;
+  const nv = val.trim().slice(0, 20);
+  if (!nv) { showToast('标签名称不能为空'); return; }
+  if (nv === oldT) return;
+  if (nv.toLowerCase() !== oldT.toLowerCase() && getSongLibTags().some(t => t.toLowerCase() === nv.toLowerCase())) { showToast(`标签「${nv}」已经存在，不能重复`); return; }
+  const lo = oldT.toLowerCase();
+  const i = songLibTags.findIndex(t => t.toLowerCase() === lo);
+  if (i >= 0) songLibTags[i] = nv; else songLibTags.push(nv);
+  persistSongLibTags();
+  let changed = 0;
+  songLibrary.forEach(s => { if (songLibHasTag(s, oldT)) { s.tags = s.tags.map(t => t.toLowerCase() === lo ? nv : t); changed++; } });
+  if (changed) persistSongLibrary();
+  songLibTagFilter = songLibTagFilter.map(t => t.toLowerCase() === lo ? nv : t);
+  songLibRefreshAfterTagFilter();
+  showToast(`✅ 已重命名为「${nv}」${changed ? `，同步更新了 ${changed} 首歌曲` : ''}`);
+  await syncSongLibTagsToRemote();
+  if (changed) await syncSongLibraryToRemote();
+}
+async function deleteSongLibTag(t){
+  if (!isAdmin) return;
+  const n = songLibTagCount(t);
+  if (!confirm(n > 0 ? `有 ${n} 首歌正在使用标签「${t}」，删除后这些歌曲会一并去掉这个标签。确定要删除吗？` : `确定要删除标签「${t}」吗？`)) return;
+  const lo = t.toLowerCase();
+  songLibTags = songLibTags.filter(x => x.toLowerCase() !== lo);
+  persistSongLibTags();
+  let changed = 0;
+  songLibrary.forEach(s => { if (songLibHasTag(s, t)) { s.tags = s.tags.filter(x => x.toLowerCase() !== lo); changed++; } });
+  if (changed) persistSongLibrary();
+  songLibTagFilter = songLibTagFilter.filter(x => x.toLowerCase() !== lo);
+  songLibRefreshAfterTagFilter();
+  showToast(`✅ 已删除标签「${t}」${changed ? `，${changed} 首歌曲已去掉该标签` : ''}`);
+  await syncSongLibTagsToRemote();
+  if (changed) await syncSongLibraryToRemote();
+}
+// ── 给歌曲选标签（上传窗口 / 详情页编辑共用）：点选已有标签，或点「新标签」自己写一个 ──
+const songLibTagSel = { add: [], edit: [] };
+function renderSongLibTagPicker(mode){
+  const box = document.getElementById(mode === 'add' ? 'songLibAddTags' : 'songLibEditTags');
+  if (!box) return;
+  const sel = songLibTagSel[mode];
+  box.innerHTML = `<div class="song-lib-tagpick-l">主题标签（可多选）</div><div class="song-lib-tagpick-chips">` +
+    getSongLibTags().map(t => `<button type="button" class="song-lib-tagchip${sel.some(x => x.toLowerCase() === t.toLowerCase()) ? ' on' : ''}" data-t="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('') +
+    (isAdmin ? `<button type="button" class="song-lib-tagchip add" data-add="1"><i class="ti ti-plus"></i>新标签</button>` : '') + `</div>`;
+  box.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    e.stopPropagation();
+    let t = b.dataset.t;
+    if (b.dataset.add) {
+      if (!isAdmin) return;
+      t = songLibTagAddCore(prompt('新标签名称（如：感恩、圣餐、圣诞、盼望）：') || '');
+      if (!t) return;
+      if (!sel.some(x => x.toLowerCase() === t.toLowerCase())) sel.push(t);
+    } else {
+      const i = sel.findIndex(x => x.toLowerCase() === t.toLowerCase());
+      if (i >= 0) sel.splice(i, 1); else sel.push(t);
+    }
+    renderSongLibTagPicker(mode);
+  };
+}
+// 歌曲上显示的标签小胶囊（max：最多显示几个，其余折叠成 +N）
+function songLibTagPillsHtml(s, cls, max){
+  const tags = (s && s.tags) || [];
+  if (!tags.length) return '';
+  const shown = max ? tags.slice(0, max) : tags;
+  return shown.map(t => `<span class="${cls}">${escapeHtml(t)}</span>`).join('') + (max && tags.length > max ? `<span class="${cls} more">+${tags.length - max}</span>` : '');
+}
+
+// ── 批量选择 / 批量打标签（管理员）──
+let songLibSelMode = false;
+const songLibSel = new Set();
+let songLibBatchAdd = [], songLibBatchRemove = [];
+function songLibBatchSyncBtn(){
+  const b = document.getElementById('songLibBatchBtn'); if (!b) return;
+  const ok = !!isAdmin && (songLibTab === 'all' || songLibTab === 'favorite') && songLibSearchMode === 'lib';
+  b.hidden = !ok;
+  b.classList.toggle('active', songLibSelMode);
+  if (!ok && songLibSelMode) songLibBatchExit();
+}
+function songLibBatchToggle(){ if (songLibSelMode) songLibBatchExit(); else songLibBatchEnter(); }
+function songLibBatchEnter(){
+  if (!isAdmin) { showToast('批量设置需要管理员登录'); return; }
+  songLibSelMode = true; songLibSel.clear();
+  document.getElementById('songLibraryOverlay').classList.add('sel-mode');
+  document.getElementById('songLibSelBar').classList.add('show');
+  if (!songLibBatchBound) {
+    songLibBatchBound = true;
+    // 选择模式下，点卡片（含缩略图）只切换勾选，不打开详情 / 大图
+    document.getElementById('songLibGrid').addEventListener('click', e => {
+      if (!songLibSelMode) return;
+      const c = e.target.closest('[data-sid]'); if (!c) return;
+      e.preventDefault(); e.stopPropagation();
+      const id = c.dataset.sid;
+      if (songLibSel.has(id)) songLibSel.delete(id); else songLibSel.add(id);
+      c.classList.toggle('sel', songLibSel.has(id));
+      songLibBatchUpdateBar();
+    }, true);
+  }
+  songLibBatchSyncBtn(); songLibBatchUpdateBar();
+}
+let songLibBatchBound = false;
+function songLibBatchExit(){
+  songLibSelMode = false; songLibSel.clear();
+  document.getElementById('songLibraryOverlay')?.classList.remove('sel-mode');
+  document.getElementById('songLibSelBar')?.classList.remove('show');
+  document.querySelectorAll('#songLibGrid .sel').forEach(el => el.classList.remove('sel'));
+  document.getElementById('songLibBatchBtn')?.classList.remove('active');
+}
+function songLibBatchUpdateBar(){
+  const n = songLibSel.size;
+  document.getElementById('songLibSelCount').textContent = `已选 ${n} 首`;
+  const vis = getFilteredSongLibrary();
+  const all = vis.length > 0 && vis.every(x => songLibSel.has(x.id));
+  document.getElementById('songLibSelAllBtn').textContent = all ? '取消全选' : '全选';
+}
+function songLibSelAll(){
+  const vis = getFilteredSongLibrary();
+  const all = vis.length > 0 && vis.every(x => songLibSel.has(x.id));
+  vis.forEach(x => { if (all) songLibSel.delete(x.id); else songLibSel.add(x.id); });
+  document.querySelectorAll('#songLibGrid [data-sid]').forEach(el => el.classList.toggle('sel', songLibSel.has(el.dataset.sid)));
+  songLibBatchUpdateBar();
+}
+function songLibBatchSelected(){ return songLibrary.filter(x => songLibSel.has(x.id)); }
+function songLibBatchOpen(){
+  if (!isAdmin) return;
+  const sel = songLibBatchSelected();
+  if (!sel.length) { showToast('先点选要设置的歌曲'); return; }
+  songLibBatchAdd = []; songLibBatchRemove = [];
+  document.getElementById('songLibBatchSongbook').value = '';
+  const dl = document.getElementById('songLibSongbookDatalist');
+  if (dl) dl.innerHTML = getSongLibSongbooks().map(c => `<option value="${escapeHtml(c)}">`).join('');
+  songLibBatchRender();
+  document.getElementById('songLibBatchOverlay').classList.add('open');
+}
+function songLibBatchClose(e){
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('songLibBatchOverlay').classList.remove('open');
+}
+function songLibBatchRender(){
+  const sel = songLibBatchSelected();
+  document.getElementById('songLibBatchTitle').textContent = `批量设置 · 已选 ${sel.length} 首`;
+  const has = (arr, t) => arr.some(x => x.toLowerCase() === t.toLowerCase());
+  const addBox = document.getElementById('songLibBatchAdd'), rmBox = document.getElementById('songLibBatchRemove');
+  addBox.innerHTML = getSongLibTags().map(t => `<button type="button" class="song-lib-filter-chip${has(songLibBatchAdd, t) ? ' active' : ''}" data-t="${escapeHtml(t)}" data-k="add">${escapeHtml(t)}</button>`).join('') +
+    `<button type="button" class="song-lib-filter-chip add" data-k="new"><i class="ti ti-plus"></i>新标签</button>`;
+  const present = new Map();
+  sel.forEach(x => (x.tags || []).forEach(t => { const k = t.toLowerCase(); present.set(k, { t, n: (present.get(k)?.n || 0) + 1 }); }));
+  rmBox.innerHTML = present.size ? [...present.values()].map(({ t, n }) => `<button type="button" class="song-lib-filter-chip${has(songLibBatchRemove, t) ? ' active rm' : ''}" data-t="${escapeHtml(t)}" data-k="rm">${escapeHtml(t)}<small>${n}</small></button>`).join('')
+    : '<span class="song-lib-tag-empty">所选歌曲还没有标签</span>';
+  const parts = [];
+  if (songLibBatchAdd.length) parts.push('添加 ' + songLibBatchAdd.map(t => '#' + t).join(' '));
+  if (songLibBatchRemove.length) parts.push('移除 ' + songLibBatchRemove.map(t => '#' + t).join(' '));
+  const sb = (document.getElementById('songLibBatchSongbook').value || '').trim();
+  if (sb) parts.push('诗歌本设为「' + sb + '」');
+  document.getElementById('songLibBatchSum').textContent = parts.length ? '将对所选歌曲：' + parts.join('；') : '还没有选择要修改的内容';
+  if (!addBox._bound) {
+    addBox._bound = true; rmBox._bound = true;
+    const h = e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const k = b.dataset.k, t = b.dataset.t;
+      const toggle = (arr, v) => { const i = arr.findIndex(x => x.toLowerCase() === v.toLowerCase()); if (i >= 0) arr.splice(i, 1); else arr.push(v); };
+      const drop = (arr, v) => { const i = arr.findIndex(x => x.toLowerCase() === v.toLowerCase()); if (i >= 0) arr.splice(i, 1); };
+      if (k === 'new') { const v = songLibTagAddCore(prompt('新标签名称（如：感恩、圣餐、圣诞、盼望）：') || ''); if (!v) return; if (!songLibBatchAdd.some(x => x.toLowerCase() === v.toLowerCase())) songLibBatchAdd.push(v); drop(songLibBatchRemove, v); }
+      else if (k === 'add') { toggle(songLibBatchAdd, t); drop(songLibBatchRemove, t); }
+      else if (k === 'rm') { toggle(songLibBatchRemove, t); drop(songLibBatchAdd, t); }
+      songLibBatchRender();
+    };
+    addBox.addEventListener('click', h); rmBox.addEventListener('click', h);
+    document.getElementById('songLibBatchSongbook').addEventListener('input', songLibBatchRender);
+  }
+}
+async function songLibBatchApply(){
+  if (!isAdmin) return;
+  const sel = songLibBatchSelected();
+  const sb = (document.getElementById('songLibBatchSongbook').value || '').trim();
+  if (!sel.length) return;
+  if (!songLibBatchAdd.length && !songLibBatchRemove.length && !sb) { showToast('还没有选择要修改的内容'); return; }
+  const rm = new Set(songLibBatchRemove.map(t => t.toLowerCase()));
+  sel.forEach(x => {
+    const cur = (x.tags || []).filter(t => !rm.has(t.toLowerCase()));
+    songLibBatchAdd.forEach(t => { if (!cur.some(c => c.toLowerCase() === t.toLowerCase())) cur.push(t); });
+    x.tags = cur;
+    if (sb) x.songbook = sb;
+  });
+  persistSongLibrary();
+  songLibBatchClose();
+  const n = sel.length;
+  songLibBatchExit();
+  renderSongLibFilterBar();
+  renderSongLibraryGrid();
+  showToast(`✅ 已更新 ${n} 首歌曲`);
+  await syncSongLibraryToRemote();
 }
 
 async function addSongLibSongbookPrompt(){
@@ -3206,13 +3766,15 @@ function getFilteredSongLibrary(){
   }
   if (songLibCategoryFilter) list = list.filter(s => s.category === songLibCategoryFilter);
   if (songLibSongbookFilter) list = list.filter(s => s.songbook === songLibSongbookFilter);
+  if (songLibTagFilter.length) list = list.filter(s => songLibTagFilter.every(t => songLibHasTag(s, t)));
   if (!songLibSearchKeyword) return list;
   const kw = songLibSearchKeyword.toLowerCase();
   return list.filter(s =>
     s.title.toLowerCase().includes(kw) ||
     s.category.toLowerCase().includes(kw) ||
     s.band.toLowerCase().includes(kw) ||
-    s.songbook.toLowerCase().includes(kw)
+    s.songbook.toLowerCase().includes(kw) ||
+    (s.tags || []).some(t => t.toLowerCase().includes(kw))
   );
 }
 
@@ -3241,7 +3803,7 @@ function songLibLeadHtml(lead){
 function songLibRenderWeekCard(){
   const host = document.getElementById('songLibWeekHost');
   if (!host) return;
-  const show = songLibWeekCardPref !== 'hide' && songLibTab === 'all' && songLibSearchMode === 'lib' && !songLibSearchKeyword && !songLibSongbookFilter && !songLibCategoryFilter;
+  const show = songLibWeekCardPref !== 'hide' && songLibTab === 'all' && songLibSearchMode === 'lib' && !songLibSearchKeyword && !songLibSongbookFilter && !songLibCategoryFilter && !songLibTagFilter.length;
   if (!show) { host.innerHTML = ''; return; }
   if (songLibSkelOn || songLibWeekDataState === 'pending') {
     host.innerHTML = `<section class="song-lib-weekcard current"><div class="song-lib-weekhead"><div class="skel-block skel-line w45"></div></div><div class="song-lib-weekrow">${
@@ -3393,6 +3955,7 @@ function songLibRecentWeeks(){
         const e = findSongLibEntryByTitle(s.title);
         if (songLibCategoryFilter && (!e || e.category !== songLibCategoryFilter)) return;
         if (songLibSongbookFilter && (!e || e.songbook !== songLibSongbookFilter)) return;
+        if (songLibTagFilter.length && (!e || !songLibTagFilter.every(t => songLibHasTag(e, t)))) return;
         if (kw && !s.title.toLowerCase().includes(kw)) return;
         items.push({ s, i });
       });
@@ -3446,7 +4009,7 @@ function songLibRecentOpenDetail(key, i){
 function songLibRenderRecent(grid, countEl){
   const weeks = songLibRecentWeeks();
   const total = weeks.reduce((n, w) => n + w.items.length, 0);
-  const filtered = !!(songLibSearchKeyword || songLibCategoryFilter || songLibSongbookFilter);
+  const filtered = !!(songLibSearchKeyword || songLibCategoryFilter || songLibSongbookFilter || songLibTagFilter.length);
   countEl.textContent = filtered ? `找到 ${total} 首` : `本月 ${weeks.length} 周 · ${total} 首`;
   if (!weeks.length) {
     grid.className = 'song-lib-grid view-list';
@@ -3458,6 +4021,9 @@ function songLibRenderRecent(grid, countEl){
 }
 function renderSongLibraryGrid(){
   songLibResetStatsCache();
+  document.getElementById('songLibraryOverlay')?.classList.toggle('tab-books', songLibTab === 'books');
+  if (songLibTab === 'books') { if (songLibSelMode) songLibBatchExit(); return; }   // 「诗歌本」标签有自己的页面（songLibBooksEnter）
+  songLibBatchSyncBtn();
   const grid = document.getElementById('songLibGrid');
   const countEl = document.getElementById('songLibCount');
   const overlayEl = document.getElementById('songLibraryOverlay');
@@ -3466,7 +4032,7 @@ function renderSongLibraryGrid(){
   if (overlayEl) overlayEl.classList.toggle('tab-recent', songLibTab === 'recent');
   if (songLibTab === 'recent') { songLibRenderRecent(grid, countEl); return; }
   const list = getFilteredSongLibrary();
-  const filtered = !!(songLibSearchKeyword || songLibCategoryFilter || songLibSongbookFilter);
+  const filtered = !!(songLibSearchKeyword || songLibCategoryFilter || songLibSongbookFilter || songLibTagFilter.length);
   if (songLibTab === 'favorite') {
     countEl.textContent = filtered ? `找到 ${list.length} 首` : `共收藏 ${list.length} 首`;
   } else if (songLibTab === 'recent') {
@@ -3512,12 +4078,14 @@ function renderSongLibraryGrid(){
       : '';
     const safeTitle=escapeHtml(s.title).replace(/'/g,"\\'");
     const isFav = isSongLibFavorite(s.id);
-    return `<div class="song-lib-card" onclick="openSongLibDetail('${s.id}')">
+    return `<div class="song-lib-card${songLibSel.has(s.id) ? ' sel' : ''}" data-sid="${s.id}" onclick="openSongLibDetail('${s.id}')">
+      <span class="song-lib-selmark"><i class="ti ti-check"></i></span>
       ${songLibRankBadge(s, 'list')}
       <div class="song-lib-card-thumb${firstSrc?' has-img':''}">${thumb}</div>
       <div class="song-lib-card-info">
         <div class="song-lib-card-title-row"><div class="song-lib-card-title">${highlightKeyword(s.title, songLibSearchKeyword)}</div>${badges.join('')}</div>
         ${sourceLine}
+        ${(s.tags && s.tags.length) ? `<div class="song-lib-card-tags">${songLibTagPillsHtml(s, 'song-lib-tagpill', 3)}</div>` : ''}
         <div class="song-lib-card-meta">${meta}</div>
       </div>
       <div class="song-lib-card-actions">
@@ -3586,6 +4154,7 @@ function songLibWCardHtml(s, i){
     : `<div class="song-lib-wthumb noimg"><i class="ti ti-photo"></i></div>`;
   const pills = [];
   if (s.songbook) pills.push(`<span class="song-lib-wpill">${escapeHtml(s.songbook)}</span>`);
+  pills.push(songLibTagPillsHtml(s, 'song-lib-wpill tag', 3));
   if (s.category) pills.push(`<span class="song-lib-wpill plain">${escapeHtml(s.category)}</span>`);
   if (s.band) pills.push(`<span><i class="ti ti-users"></i> ${escapeHtml(s.band)}</span>`);
   const d = new Date(s.createdAt);
@@ -3593,7 +4162,8 @@ function songLibWCardHtml(s, i){
   const rankHtml = songLibRankBadge(s, 'wf');
   const safeTitle = escapeHtml(s.title).replace(/'/g,"\\'");
   const isFav = isSongLibFavorite(s.id);
-  return `<div class="song-lib-wcard${rankHtml ? ' ranked' : ''}" onclick="openSongLibDetail('${s.id}')">
+  return `<div class="song-lib-wcard${rankHtml ? ' ranked' : ''}${songLibSel.has(s.id) ? ' sel' : ''}" data-sid="${s.id}" onclick="openSongLibDetail('${s.id}')">
+    <span class="song-lib-selmark"><i class="ti ti-check"></i></span>
     ${rankHtml}${thumb}
     <div class="song-lib-winfo">
       <div class="song-lib-wtitle">${highlightKeyword(s.title, songLibSearchKeyword)}</div>
@@ -3623,6 +4193,7 @@ function songLibOnResize(){
   clearTimeout(songLibResizeT);
   songLibResizeT = setTimeout(() => {
     if (songLibViewMode !== 'waterfall') return;
+    if (songLibTab === 'books') { const h = document.getElementById('songLibBkSongs'); const w = h && h.querySelector(':scope > .song-lib-wf'); if (w && w.children.length !== songLibWfCols(h) && songLibDsRows.length) songLibDsRender(0, 'songLibBkSongs'); return; }
     const overlay = document.getElementById('songLibraryOverlay');
     if (!overlay || !overlay.classList.contains('open')) return;
     const ds = songLibSearchMode === 'ds';
@@ -4185,8 +4756,8 @@ function songLibDsCardWf(r, i){
   </div>`;
 }
 
-function songLibDsRender(from){
-  const host = document.getElementById('songLibDsList');
+function songLibDsRender(from, hostId){
+  const host = document.getElementById(hostId || 'songLibDsList');
   const wfMode = songLibViewMode === 'waterfall';
   if (from === 0) { if (songLibDsObserver) songLibDsObserver.disconnect(); host.innerHTML = ''; }
   host.className = 'song-lib-ds-list ' + (wfMode ? 'view-wf' : 'view-list');
@@ -4236,6 +4807,280 @@ async function songLibDsLoadThumb(el, gen){
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 诗歌本（歌本分类）——从「专属歌谱搜索」页移植：独立标签页，不嵌在专属搜索里
+// 歌本列表来自云端 church_app_state.song_books；点进歌本读取本书全部歌谱，可按第几首查找；管理员可增删改歌本。
+// ═══════════════════════════════════════════════════════════════
+const SONGLIB_BOOK_PAGE = 80;
+let songLibBookSrv = { list: [], at: 0, ok: false };
+let songLibBookCur = null;     // 当前打开的歌本 {id,name,intro,cover}
+let songLibBookKw = '';        // 歌本列表的搜索词
+const songLibBookIcon = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 3h10a3 3 0 0 1 3 3v12.5a.5.5 0 0 1-.8.4L15 17.2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm1.5 4v2h7V7h-7Zm0 4v2h5v-2h-5Z"/></svg>';
+function songLibBookCoverHtml(c){
+  return c
+    ? `<img src="${escapeHtml(c)}" alt="" loading="lazy" referrerpolicy="no-referrer" onload="this.classList.add('ld');this.parentNode.classList.add('has-img')" onerror="this.remove()">${songLibBookIcon}<span>暂无封面图</span>`
+    : `${songLibBookIcon}<span>暂无封面图</span>`;
+}
+function songLibBooksMerged(){
+  return (songLibBookSrv.list || []).filter(b => b && b.id != null).map(b => ({
+    id: Number(b.id), name: String(b.name || ('歌本 ' + b.id)).trim(), intro: b.intro || '', cover: b.cover || ''
+  }));
+}
+function songLibBookById(id){ return songLibBooksMerged().find(b => b.id === Number(id)) || { id: Number(id), name: '歌本 ' + id, intro: '', cover: '' }; }
+async function songLibBooksFetch(force){
+  if (!force && songLibBookSrv.ok && Date.now() - songLibBookSrv.at < 5 * 60 * 1000) return songLibBookSrv.list;
+  if (!initSupabaseClient()) return songLibBookSrv.list;
+  try {
+    const { data, error } = await supabaseClient.from(SUPABASE_CONFIG.table).select('song_books').eq('id', SUPABASE_CONFIG.rowId).maybeSingle();
+    if (error) { songLibBookSrv.ok = false; return songLibBookSrv.list; }   // 字段不存在等
+    songLibBookSrv = { list: Array.isArray(data && data.song_books) ? data.song_books : [], at: Date.now(), ok: true };
+  } catch (e) { songLibBookSrv.ok = false; }
+  return songLibBookSrv.list;
+}
+function songLibBookSkel(n){
+  return Array.from({ length: n }, (_, i) => `<div class="song-lib-bk-skel" style="--d:${Math.min(i, 8) * 70}ms"><div class="song-lib-bk-cover"></div><div class="song-lib-bk-info"><div class="ln"></div><div class="ln s"></div><div class="ln xs"></div></div></div>`).join('');
+}
+// 进入「诗歌本」标签
+function songLibBooksEnter(){
+  songLibBookKw = '';
+  const inp = document.getElementById('songLibBkSearch'); if (inp) inp.value = '';
+  document.getElementById('songLibBkSearchClear')?.classList.remove('visible');
+  songLibBookCur = null;
+  songLibBooksShowList(true);
+}
+function songLibBooksUpdateAdminUI(){
+  const on = !!isAdmin;
+  const a = document.getElementById('songLibBkAdminBtn'); if (a) a.hidden = !on;
+  const e = document.getElementById('songLibBkEdit'); if (e) e.hidden = !on;
+}
+async function songLibBooksShowList(force){
+  const listWrap = document.getElementById('songLibBkList'), detail = document.getElementById('songLibBkDetail');
+  if (!listWrap || !detail) return;
+  songLibBookCur = null; songLibDsGen++;
+  detail.hidden = true; listWrap.hidden = false;
+  songLibBooksUpdateAdminUI();
+  const grid = document.getElementById('songLibBkGrid'), cnt = document.getElementById('songLibBkCount');
+  const fresh = !songLibBookSrv.ok || force;
+  if (!songLibBookSrv.list.length) { grid.innerHTML = songLibBookSkel(6); cnt.textContent = '正在读取歌本列表…'; }
+  await songLibBooksFetch(!!force && fresh);
+  if (songLibTab !== 'books' || songLibBookCur) return;
+  songLibBooksRenderList();
+}
+function songLibBooksRenderList(){
+  const grid = document.getElementById('songLibBkGrid'), cnt = document.getElementById('songLibBkCount');
+  if (!grid) return;
+  const kw = songLibBookKw.trim().toLowerCase(), nk = songLibDsNormBook(songLibBookKw);
+  let list = songLibBooksMerged();
+  if (kw) list = list.filter(b => String(b.id) === kw || songLibDsNormBook(b.name).includes(nk) || (b.intro || '').toLowerCase().includes(kw));
+  list.sort((a, b) => (!!(b.cover || b.intro) - !!(a.cover || a.intro)) || a.id - b.id);
+  const total = list.length;
+  cnt.textContent = !songLibBookSrv.ok ? '' : (kw ? `找到 ${total} 本` : `共 ${total} 本歌本`);
+  if (!songLibBookSrv.ok && !total) {
+    grid.innerHTML = '<div class="song-lib-empty"><i class="ti ti-cloud-off"></i>读取歌本列表失败，请检查网络；管理员还需确认数据库已创建 song_books 字段<br><button class="song-lib-bk-retry" onclick="songLibBooksShowList(true)">重试</button></div>';
+    return;
+  }
+  const admin = !!isAdmin;
+  grid.innerHTML = total
+    ? list.slice(0, SONGLIB_BOOK_PAGE).map((b, k) => `<div class="song-lib-bk-card" style="animation-delay:${Math.min(k, 8) * 40}ms" onclick="songLibBookOpen(${b.id})">
+        <div class="song-lib-bk-cover">${songLibBookCoverHtml(b.cover)}</div>
+        <div class="song-lib-bk-info"><div class="song-lib-bk-name">${escapeHtml(b.name)}</div>
+          <div class="song-lib-bk-meta"><span class="song-lib-wpill">ID ${b.id}</span></div>
+          <div class="song-lib-bk-intro">${escapeHtml(b.intro || '暂无介绍')}</div></div>
+        ${admin ? `<button type="button" class="song-lib-bk-editbtn" onclick="event.stopPropagation();songLibBookAdminOpen(${b.id})" aria-label="编辑"><i class="ti ti-pencil"></i></button>` : ''}
+      </div>`).join('') + (total > SONGLIB_BOOK_PAGE ? `<div class="song-lib-empty" style="padding:14px">仅显示前 ${SONGLIB_BOOK_PAGE} 本，共 ${total} 本；请输入歌本名或编号缩小范围。</div>` : '')
+    : `<div class="song-lib-empty"><i class="ti ti-books"></i>${kw ? '没有找到这个歌本，可换个名字或直接输入歌本编号' : (admin ? '还没有添加歌本：点右上角「歌本管理」添加' : '还没有添加歌本')}</div>`;
+}
+function onSongLibBookSearch(){
+  const inp = document.getElementById('songLibBkSearch');
+  songLibBookKw = inp.value;
+  document.getElementById('songLibBkSearchClear')?.classList.toggle('visible', !!inp.value);
+  songLibBooksRenderList();
+}
+function clearSongLibBookSearch(){
+  const inp = document.getElementById('songLibBkSearch'); inp.value = ''; onSongLibBookSearch(); inp.focus();
+}
+// ── 歌本里的歌曲：读取 /catalogue/image（整本一次取回），失败退回 /image/searchByName ──
+async function songLibDsCatGet(path, params){
+  const base = songLibDsCfg().apiBase.trim().replace(/\/+$/, '');
+  if (!base) throw new Error('未配置诗歌本接口地址');
+  if (!songLibDeviceSignId) await songLibDsRegisterDevice();
+  const url = new URL(base + path);
+  Object.entries(params || {}).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+  let res, text;
+  try { res = await fetch(url.toString(), { headers: songLibDsMakeHeaders() }); text = await res.text(); }
+  catch (e) { throw new Error('无法连接（跨域限制或网络不可达）'); }
+  let data; try { data = JSON.parse(text); } catch (e) { data = { raw: text }; }
+  if (!res.ok) throw new Error(`HTTP ${res.status}：${(data && (data.msg || data.message)) || text.slice(0, 100)}`);
+  if (data && data.msg && !Array.isArray(data)) throw new Error(data.msg);
+  return songLibDsNormalizeRows(data);
+}
+async function songLibBookFetchSongs(bookId, key){
+  try {
+    let rows = (await songLibDsCatGet('/catalogue/image', { bookId, ts: 0 })).filter(r => r && !r.isDeleted);
+    const bk = songLibBookById(bookId);
+    rows.forEach(r => { if (!r.bookName) r.bookName = bk.name; if (r.bookId == null) r.bookId = bookId; });
+    rows = rows.map(r => Object.assign({ _src: 'hymn' }, r));
+    const k = String(key || '').trim();
+    if (k && !/^\d+$/.test(k)) { const n = k.toLowerCase(); rows = rows.filter(r => String(r.name || '').toLowerCase().includes(n) || String(r.artist || '').toLowerCase().includes(n)); }
+    songLibDsLearnBooks(rows);
+    return rows;
+  } catch (e) { console.warn('[catalogue/image] 失败，回退 searchByName', e); }
+  const base = songLibDsCfg().apiBase.trim().replace(/\/+$/, '');
+  if (!base) throw new Error('未配置诗歌本接口地址');
+  const url = new URL(base + '/image/searchByName');
+  url.searchParams.set('key', key || ''); url.searchParams.set('bookId', String(bookId)); url.searchParams.set('musicType', '0');
+  if (!songLibDeviceSignId) await songLibDsRegisterDevice();
+  let out;
+  try { out = await songLibDsHymnGet(url); } catch (e) { throw new Error('无法连接（跨域限制或网络不可达）'); }
+  if (!out.res.ok) throw new Error(`HTTP ${out.res.status}：${(out.data && (out.data.msg || out.data.message)) || out.text.slice(0, 100)}`);
+  if (out.data && out.data.msg && !Array.isArray(out.data)) throw new Error(out.data.msg);
+  const rows = songLibDsNormalizeRows(out.data).map(r => Object.assign({ _src: 'hymn' }, r));
+  songLibDsLearnBooks(rows);
+  return rows;
+}
+async function songLibBookOpen(id, query){
+  let book = songLibBookById(id);
+  songLibBookCur = book;
+  const listWrap = document.getElementById('songLibBkList'), detail = document.getElementById('songLibBkDetail');
+  listWrap.hidden = true; detail.hidden = false;
+  document.getElementById('songLibBkdCover').innerHTML = songLibBookCoverHtml(book.cover);
+  document.getElementById('songLibBkdName').textContent = book.name;
+  document.getElementById('songLibBkdMeta').innerHTML = `<span class="song-lib-wpill">ID ${book.id}</span>`;
+  document.getElementById('songLibBkdIntro').textContent = book.intro || '暂无介绍';
+  const noEl = document.getElementById('songLibBkdNo');
+  if (query != null) noEl.value = query;
+  songLibBooksUpdateAdminUI();
+  const wrapTop = document.getElementById('songLibBooksView'); if (wrapTop) wrapTop.scrollIntoView({ block: 'start' });
+  await songLibBookLoadSongs();
+}
+async function songLibBookLoadSongs(){
+  const book = songLibBookCur; if (!book) return;
+  const gen = ++songLibDsGen;
+  songLibDsQueue.length = 0; songLibDsRows = [];
+  const host = document.getElementById('songLibBkSongs'), st = document.getElementById('songLibBkdStatus');
+  host.className = 'song-lib-ds-list ' + (songLibViewMode === 'waterfall' ? 'view-wf' : 'view-list');
+  host.innerHTML = '<div class="song-lib-ds-loading"><i class="ti ti-loader-2"></i>正在读取《' + escapeHtml(book.name) + '》的歌谱…</div>';
+  st.textContent = '';
+  if (!songLibDsHasCrypto()) { st.textContent = 'CryptoJS 未加载（网络问题），诗歌本接口暂不可用。'; }
+  const no = (document.getElementById('songLibBkdNo').value || '').trim();
+  try {
+    let rows = await songLibBookFetchSongs(book.id, no);
+    if (gen !== songLibDsGen) return;
+    rows = rows.filter(r => String(r.bookId ?? r.bookID ?? book.id) === String(book.id) || r.bookId == null);
+    let note = '';
+    if (no && /^\d+$/.test(no)) {
+      const hit = rows.filter(r => String(r.no) === String(Number(no)));
+      if (hit.length) rows = hit; else if (rows.length) note = `没有精确的第 ${no} 首，下面是相近结果。`;
+    } else {
+      rows.sort((a, b) => (!!a.isAddendum - !!b.isAddendum) || ((Number(a.no) || 1e9) - (Number(b.no) || 1e9)) || String(a.multiTag || '').localeCompare(String(b.multiTag || '')));
+    }
+    songLibDsRows = rows;
+    document.getElementById('songLibBkdCount').textContent = `${book.name}（${rows.length} 首）`;
+    if (!rows.length) { host.innerHTML = `<div class="song-lib-empty"><i class="ti ti-mood-empty"></i>${no ? `本书里没有找到第 ${escapeHtml(no)} 首` : '没有读到本书歌曲，可在上方输入第几首查找'}</div>`; st.textContent = ''; return; }
+    host.innerHTML = '';
+    songLibDsRender(0, 'songLibBkSongs');
+    st.textContent = note || '点击歌谱图可放大查看。';
+  } catch (e) {
+    if (gen !== songLibDsGen) return;
+    document.getElementById('songLibBkdCount').textContent = '读取未完成';
+    host.innerHTML = '<div class="song-lib-empty"><i class="ti ti-alert-circle"></i>请求失败，请稍后重试</div>';
+    st.textContent = '错误：' + (e?.message || e);
+  }
+}
+function songLibBookFind(e){ if (e) e.preventDefault(); songLibBookLoadSongs(); }
+function songLibBookBack(){
+  document.getElementById('songLibBkdNo').value = '';
+  songLibBooksShowList(false);
+}
+
+// ── 歌本管理（管理员；写入云端 church_app_state.song_books）──
+function songLibBookAdminOpen(id){
+  if (!isAdmin) return;
+  const ov = document.getElementById('songLibBkAdminOverlay'); if (!ov) return;
+  ov.classList.add('open');
+  songLibBookAdminFill(id == null ? null : songLibBookById(id));
+  songLibBookAdminMsg('');
+}
+function songLibBookAdminClose(e){
+  if (e && e.target && e.target.id !== 'songLibBkAdminOverlay') return;
+  document.getElementById('songLibBkAdminOverlay')?.classList.remove('open');
+}
+function songLibBookAdminFill(b){
+  document.getElementById('songLibBkAdmId').value = b ? b.id : '';
+  document.getElementById('songLibBkAdmName').value = b ? b.name : '';
+  document.getElementById('songLibBkAdmIntro').value = b ? (b.intro || '') : '';
+  document.getElementById('songLibBkAdmCover').value = b ? (b.cover || '') : '';
+  document.getElementById('songLibBkAdmId').readOnly = !!b;
+  songLibBookAdminPrev();
+}
+function songLibBookAdminMsg(t, bad){ const el = document.getElementById('songLibBkAdmMsg'); if (el) { el.textContent = t || ''; el.style.color = bad ? '#d9534f' : ''; } }
+function songLibBookAdminPrev(){
+  const v = document.getElementById('songLibBkAdmCover').value.trim();
+  document.getElementById('songLibBkAdmPrev').innerHTML = songLibBookCoverHtml(v);
+  document.getElementById('songLibBkAdmSize').textContent = v.startsWith('data:') ? `已内嵌图片，约 ${Math.round(v.length / 1024)} KB` : '';
+}
+function songLibBookCompress(file, maxW, q){
+  return new Promise((ok, no) => {
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => {
+      const r = Math.min(1, maxW / img.width), c = document.createElement('canvas');
+      c.width = Math.round(img.width * r); c.height = Math.round(img.height * r);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+      ok(c.toDataURL('image/jpeg', q));
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); no(new Error('img')); };
+    img.src = u;
+  });
+}
+async function songLibBookAdminUpload(inp){
+  const f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+  try { document.getElementById('songLibBkAdmCover').value = await songLibBookCompress(f, 360, .82); songLibBookAdminPrev(); songLibBookAdminMsg('图片已压缩并内嵌，记得点保存。'); }
+  catch (e) { songLibBookAdminMsg('图片读取失败，请换一张。', true); }
+}
+async function songLibBookWrite(arr){
+  if (!initSupabaseClient()) throw new Error('云端未连接');
+  const { data, error } = await supabaseClient.from(SUPABASE_CONFIG.table).update({ song_books: arr }).eq('id', SUPABASE_CONFIG.rowId).select('id');
+  if (error) {
+    const m = error.message || String(error);
+    if (/song_books|column|PGRST204|42703/i.test(m + (error.code || ''))) throw new Error('数据库里还没有 song_books 字段，请先在 Supabase 执行：alter table church_app_state add column if not exists song_books jsonb default \'[]\'::jsonb;');
+    throw new Error(m);
+  }
+  if (Array.isArray(data) && !data.length) throw new Error('没有写入权限（0 行被更新）：请先登录管理员账号');
+  songLibBookSrv = { list: arr, at: Date.now(), ok: true };
+}
+async function songLibBookAdminSave(){
+  const id = Number.parseInt(document.getElementById('songLibBkAdmId').value, 10);
+  const name = document.getElementById('songLibBkAdmName').value.trim();
+  if (!Number.isFinite(id) || id < 0) { songLibBookAdminMsg('请填写歌本 ID（数字）。', true); return; }
+  if (!name) { songLibBookAdminMsg('请填写歌本名。', true); return; }
+  const cover = document.getElementById('songLibBkAdmCover').value.trim();
+  if (cover.length > 400 * 1024) { songLibBookAdminMsg('封面图太大（超过约 400 KB），请换小一点的图或使用图片链接。', true); return; }
+  const btn = document.getElementById('songLibBkAdmSave'); btn.disabled = true; songLibBookAdminMsg('保存中…');
+  try {
+    const cur = (await songLibBooksFetch(true)).slice();
+    if (!songLibBookSrv.ok) throw new Error('读不到 song_books 字段，请先在 Supabase 创建该字段。');
+    const item = { id, name, intro: document.getElementById('songLibBkAdmIntro').value.trim(), cover };
+    const i = cur.findIndex(x => Number(x.id) === id);
+    if (i >= 0) cur[i] = item; else cur.push(item);
+    await songLibBookWrite(cur);
+    songLibBookAdminMsg('已保存。');
+    if (songLibBookCur && songLibBookCur.id === id) { songLibBookCur = songLibBookById(id); songLibBookOpen(id); } else if (!songLibBookCur) songLibBooksRenderList();
+  } catch (e) { songLibBookAdminMsg('保存失败：' + (e?.message || e), true); }
+  finally { btn.disabled = false; }
+}
+async function songLibBookAdminDelete(){
+  const id = Number.parseInt(document.getElementById('songLibBkAdmId').value, 10);
+  if (!Number.isFinite(id)) { songLibBookAdminMsg('请先选择一个歌本。', true); return; }
+  if (!confirm('确定删除这本歌本的资料（封面和介绍）？')) return;
+  try {
+    const cur = (await songLibBooksFetch(true)).slice();
+    if (!songLibBookSrv.ok) throw new Error('读不到 song_books 字段。');
+    await songLibBookWrite(cur.filter(x => Number(x.id) !== id));
+    songLibBookAdminFill(null); songLibBookAdminMsg('已删除。');
+    if (songLibBookCur && songLibBookCur.id === id) songLibBooksShowList(false); else songLibBooksRenderList();
+  } catch (e) { songLibBookAdminMsg('删除失败：' + (e?.message || e), true); }
+}
+
 async function songLibDsOpen(i){
   const r = songLibDsRows[i];
   if (!r) return;
@@ -4251,10 +5096,10 @@ async function songLibDsOpen(i){
     if (r._src === 'azm') urls = await songLibDsEnsureAzmImages(r);
     else urls = [await songLibDsGetImageUrl(Number(r.id))];
     if (!urls || !urls.length) { showToast('该歌谱暂无图片'); return; }
-    openLightboxWithList(urls.map((u, k) => ({ title: urls.length > 1 ? `${name}（${k + 1}/${urls.length}）` : name, src: u })), 0);
+    openLightboxWithList(urls.map((u, k) => ({ title: urls.length > 1 ? `${name}（${k + 1}/${urls.length}）` : name, src: u, noLib: true })), 0);
   } catch (e) {
     if (r._src !== 'azm') {   // 凭证可能过期：强制换一张再试一次
-      try { openLightboxWithList([{ title: name, src: await songLibDsGetImageUrl(Number(r.id), true) }], 0); return; } catch (e2) {}
+      try { openLightboxWithList([{ title: name, src: await songLibDsGetImageUrl(Number(r.id), true), noLib: true }], 0); return; } catch (e2) {}
     }
     showToast('歌谱加载失败：' + (e?.message || e), 3500);
   }
@@ -4293,7 +5138,7 @@ function markSongLibPlayed(title){
 }
 
 function openLightboxFromLibraryGrid(index){
-  const list = getFilteredSongLibrary().map(s => ({ title: s.title, src: s.keys[0]?.src || '' }));
+  const list = getFilteredSongLibrary().map(s => ({ title: s.title, src: s.keys[0]?.src || '', songId: s.id }));
   openLightboxWithList(list, index);
 }
 
@@ -4374,7 +5219,7 @@ function openLightboxFromDetail(){
   const key = s?.keys[songLibDetailKeyIndex];
   if (!key?.src) return;
   const label = getSongLibKeyDisplayLabel(key);
-  openLightboxWithList([{ title: `${s.title}${key.label ? '（' + label + '）' : ''}`, src: key.src }], 0);
+  openLightboxWithList([{ title: `${s.title}${key.label ? '（' + label + '）' : ''}`, src: key.src, songId: s.id }], 0);
 }
 
 async function downloadCurrentSongLibKeyImage(){
@@ -4511,22 +5356,28 @@ function renderSongLibDetailSource(){
     wrap.innerHTML = `<div class="song-lib-source-edit-panel show">
       <input type="text" id="songLibSourceEditBand" list="songLibBandDatalist" placeholder="乐团（如：敬拜团、青年团契）" value="${escapeHtml(s.band)}">
       <input type="text" id="songLibSourceEditSongbook" list="songLibSongbookDatalist" placeholder="诗歌本（如：生命圣诗、赞美之泉）" value="${escapeHtml(s.songbook)}">
+      <div class="song-lib-tagpick" id="songLibEditTags"></div>
       <div class="song-lib-source-edit-actions">
         <button class="btn-cancel" onclick="cancelSourceEdit()">取消</button>
         <button class="btn-save" onclick="saveSourceEdit()">保存</button>
       </div>
     </div>`;
+    renderSongLibTagPicker('edit');
     return;
   }
   const parts = [];
   if (s.band) parts.push(`<span><i class="ti ti-users"></i>${escapeHtml(s.band)}</span>`);
   if (s.songbook) parts.push(`<span><i class="ti ti-book-2"></i>${escapeHtml(s.songbook)}</span>`);
-  const editBtn = `<button class="song-lib-source-edit-btn" onclick="openSourceEdit()"><i class="ti ti-edit"></i>${parts.length ? '编辑' : '添加乐团/诗歌本'}</button>`;
-  wrap.innerHTML = `<div class="song-lib-detail-source-line">${parts.join('')}${editBtn}</div>`;
+  const hasAny = parts.length || (s.tags && s.tags.length);
+  const editBtn = !isAdmin ? '' : `<button class="song-lib-source-edit-btn" onclick="openSourceEdit()"><i class="ti ti-edit"></i>${hasAny ? '编辑' : '添加乐团/诗歌本/标签'}</button>`;
+  const tagsRow = (s.tags && s.tags.length) ? `<div class="song-lib-detail-tags">${songLibTagPillsHtml(s, 'song-lib-tagpill')}</div>` : '';
+  wrap.innerHTML = `<div class="song-lib-detail-source-line">${parts.join('')}${editBtn}</div>${tagsRow}`;
 }
 
 function openSourceEdit(){
+  if (!isAdmin) { showToast('修改来源和标签需要管理员登录'); return; }
   songLibSourceEditing = true;
+  songLibTagSel.edit = ((songLibDetailCurrent && songLibDetailCurrent.tags) || []).slice();
   renderSongLibDetailSource();
 }
 
@@ -4538,8 +5389,10 @@ function cancelSourceEdit(){
 async function saveSourceEdit(){
   const s = songLibDetailCurrent;
   if (!s) return;
+  if (!isAdmin) { showToast('修改来源和标签需要管理员登录'); return; }
   s.band = (document.getElementById('songLibSourceEditBand')?.value || '').trim();
   s.songbook = (document.getElementById('songLibSourceEditSongbook')?.value || '').trim();
+  s.tags = normalizeSongLibTagList(songLibTagSel.edit);
   persistSongLibrary();
   songLibSourceEditing = false;
   renderSongLibDetailSource();
@@ -5055,7 +5908,7 @@ function openLightboxFromNowPlaying() {
   const key = s?.keys[nowPlayingKeyIndex];
   if (!key?.src) return;
   const label = getSongLibKeyDisplayLabel(key);
-  openLightboxWithList([{ title: `${s.title}${key.label ? '（' + label + '）' : ''}`, src: key.src }], 0);
+  openLightboxWithList([{ title: `${s.title}${key.label ? '（' + label + '）' : ''}`, src: key.src, songId: s.id }], 0);
 }
 
 function downloadCurrentNowPlayingImage() {
@@ -5503,7 +6356,7 @@ function renderSongLibLyrics(){
   }
   actionsEl.innerHTML = s.lyrics
     ? `<button class="song-lib-lyrics-link-btn" onclick="downloadCurrentSongLibLyrics()"><i class="ti ti-download"></i>下载歌词</button>
-       <button class="song-lib-lyrics-link-btn" onclick="openLyricsEdit()"><i class="ti ti-edit"></i>编辑</button>`
+       ${isAdmin ? '<button class="song-lib-lyrics-link-btn" onclick="openLyricsEdit()"><i class="ti ti-edit"></i>编辑</button>' : ''}`
     : `<button class="song-lib-lyrics-link-btn" onclick="openLyricsEdit()"><i class="ti ti-plus"></i>添加歌词</button>`;
   bodyEl.innerHTML = s.lyrics
     ? `<div class="song-lib-lyrics-preview">${escapeHtml(s.lyrics)}</div>`
@@ -5511,6 +6364,7 @@ function renderSongLibLyrics(){
 }
 
 function openLyricsEdit(){
+  if (songLibDetailCurrent && songLibDetailCurrent.lyrics && !isAdmin) { showToast('修改已有歌词需要管理员登录'); return; }
   songLibLyricsEditing = true;
   renderSongLibLyrics();
   const ta = document.getElementById('songLibLyricsTextarea');
@@ -5525,6 +6379,7 @@ function cancelLyricsEdit(){
 async function saveLyricsEdit(){
   const s = songLibDetailCurrent;
   if (!s) return;
+  if (s.lyrics && !isAdmin) { showToast('修改已有歌词需要管理员登录'); return; }
   const ta = document.getElementById('songLibLyricsTextarea');
   s.lyrics = (ta?.value || '').trim();
   persistSongLibrary();
@@ -5728,7 +6583,7 @@ const SCHEDULE_PAGE = 'index.html';   // 左上角「返回」回到排班表；
 // 只拉诗歌库相关的几列（旧库缺列时退回 select('*')）
 async function loadRemoteSongState() {
   if (!initSupabaseClient()) return false;
-  const cols = 'song_library,song_lib_storage_config,song_lib_categories,song_lib_songbooks,song_data,schedule_data';
+  const cols = 'song_library,song_lib_storage_config,song_lib_categories,song_lib_songbooks,song_lib_tags,song_data,schedule_data';
   let res = await supabaseClient.from(SUPABASE_CONFIG.table).select(cols).eq('id', SUPABASE_CONFIG.rowId).maybeSingle();
   if (res.error) res = await supabaseClient.from(SUPABASE_CONFIG.table).select('*').eq('id', SUPABASE_CONFIG.rowId).maybeSingle();
   if (res.error) throw res.error;
@@ -5743,6 +6598,7 @@ async function loadRemoteSongState() {
   }
   if (row.song_lib_categories !== undefined) { songLibCategories = normalizeSongLibCategoryList(row.song_lib_categories); persistSongLibCategories(); }
   if (row.song_lib_songbooks !== undefined) { songLibSongbooks = normalizeSongLibSongbookList(row.song_lib_songbooks); persistSongLibSongbooks(); }
+  if (row.song_lib_tags !== undefined) { songLibTags = normalizeSongLibTagList(row.song_lib_tags); persistSongLibTags(); }
   return true;
 }
 // 排班表里的 normalizeSongData（歌曲历史用到）
@@ -5759,6 +6615,8 @@ function normalizeSongData(raw) {
 
 // ── 管理员（和排班表同一套 Supabase 账号） ──
 function updateAdminUI() {
+  try { if (!isAdmin && songLibSelMode) songLibBatchExit(); } catch (e) {}
+  try { if (songLibTab === 'books') { songLibBooksUpdateAdminUI(); if (!songLibBookCur) songLibBooksRenderList(); } } catch (e) {}
   document.body.classList.toggle('is-admin', isAdmin);
   const b = document.getElementById('songLibAdminBtn');
   if (b) { b.classList.toggle('active', isAdmin); b.title = isAdmin ? '管理员已登录（点击退出）' : '管理员登录'; b.setAttribute('aria-label', b.title); }
@@ -5826,7 +6684,7 @@ async function saveStorageAndClose() { await saveSongLibStorageConfig(); closeSo
 closeSongLibrary = function () { if (SCHEDULE_PAGE) location.href = SCHEDULE_PAGE; };
 
 // ── 本周选歌（独立页面）：需要管理员登录，从诗歌库里勾选，保存后同步到云端 ──
-let songLibPendingPick = false, weekPickSel = [];
+let songLibPendingPick = false, weekPickSel = [], weekPickTagFilter = [];
 function songLibPickWeekSongs(){
   if (!isAdmin) { songLibPendingPick = true; onAdminBtnClick(); return; }   // 先登录，登录成功后自动打开选歌
   openWeekPick();
@@ -5837,6 +6695,7 @@ function openWeekPick(){
   const d = new Date(key + 'T00:00:00');
   document.getElementById('weekPickSub').textContent = `${d.getMonth() + 1}月${d.getDate()}日（周日）`;
   document.getElementById('weekPickSearch').value = '';
+  weekPickTagFilter = [];
   renderWeekPick();
   document.getElementById('weekPickOverlay').classList.add('open');
 }
@@ -5846,7 +6705,24 @@ function closeWeekPick(e){
 }
 function renderWeekPick(){
   const kw = (document.getElementById('weekPickSearch').value || '').trim().toLowerCase();
-  const list = songLibrary.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).filter(s => !kw || s.title.toLowerCase().includes(kw));
+  const list = songLibrary.slice().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .filter(s => !kw || s.title.toLowerCase().includes(kw) || (s.tags || []).some(t => t.toLowerCase().includes(kw)))
+    .filter(s => !weekPickTagFilter.length || weekPickTagFilter.every(t => songLibHasTag(s, t)));
+  const tagBar = document.getElementById('weekPickTagBar');
+  const allTags = getSongLibTags();
+  tagBar.style.display = allTags.length ? '' : 'none';
+  tagBar.innerHTML = allTags.length ? `<button type="button" class="week-pick-tag${weekPickTagFilter.length ? '' : ' on'}" data-t="">全部</button>` +
+    allTags.map(t => `<button type="button" class="week-pick-tag${weekPickTagFilter.some(x => x.toLowerCase() === t.toLowerCase()) ? ' on' : ''}" data-t="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('') : '';
+  if (!tagBar._bound) {
+    tagBar._bound = true;
+    tagBar.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const t = b.dataset.t;
+      if (!t) weekPickTagFilter = [];
+      else { const i = weekPickTagFilter.findIndex(x => x.toLowerCase() === t.toLowerCase()); if (i >= 0) weekPickTagFilter.splice(i, 1); else weekPickTagFilter.push(t); }
+      renderWeekPick();
+    });
+  }
   document.getElementById('weekPickChips').innerHTML = weekPickSel.map((t, i) =>
     `<span class="week-pick-chip" onclick="weekPickRemove(${i})">${i + 1}. ${escapeHtml(t)} <i class="ti ti-x"></i></span>`).join('');
   document.getElementById('weekPickList').innerHTML = list.length ? list.map(s => {
@@ -5854,7 +6730,7 @@ function renderWeekPick(){
     const src = s.keys[0]?.src || '';
     return `<div class="week-pick-row${idx >= 0 ? ' on' : ''}" onclick="weekPickToggle('${s.id}')">
       <div class="week-pick-thumb">${src ? `<img src="${src}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<i class="ti ti-photo"></i>'}</div>
-      <span class="week-pick-name">${escapeHtml(s.title)}</span>
+      <span class="week-pick-name">${escapeHtml(s.title)}${(s.tags && s.tags.length) ? `<span class="week-pick-tags">${s.tags.map(t => '#' + escapeHtml(t)).join(' ')}</span>` : ''}</span>
       <span class="week-pick-mark">${idx >= 0 ? idx + 1 : ''}</span>
     </div>`;
   }).join('') : `<div class="week-pick-empty">${songLibrary.length ? '没有找到匹配的诗歌' : '诗歌库还是空的，先上传诗歌'}</div>`;
@@ -5907,6 +6783,7 @@ async function bootstrapSongLibPage() {
   loadSongLibFavorites();
   loadSongLibCategories();
   loadSongLibSongbooks();
+  loadSongLibTags();
   loadSongLibSupabaseConfig();
   songLibSkelWait = songLibrary.length === 0;   // 本机没有缓存：骨架一直显示到云端数据回来
   songLibWeekDataState = 'pending';             // 云端数据回来前，本周卡片先显示骨架，免得误报「暂未选歌」
