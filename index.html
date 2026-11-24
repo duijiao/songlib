@@ -1215,7 +1215,6 @@ mark.song-lib-hl { background: var(--primary-light); color: var(--primary); font
   display: flex; align-items: center; justify-content: center; color: var(--text-2);
 }
 .ms-bottom-item:active i { background: var(--primary-light); color: var(--primary); }
-}
 
 
 /* ===== 独立页面：覆盖排班表里手机宽度的外壳，诗歌库铺满整个窗口 ===== */
@@ -1545,7 +1544,6 @@ body:has(.floating-audio-bar.show) .ds-promo { bottom: 150px; }
 .ss-send:disabled { opacity: .4; cursor: default; }
 .ss-big { display: block; width: 100%; border-radius: 10px; margin: 6px 0 4px; background: #fff; border: 1px solid var(--border-soft); }
 .ss-bigwrap { padding: 0 0 10px; border-bottom: 1px solid var(--border-soft); }
-.week-pick-usage { display: block;
 .week-pick-tag i { font-size: 13px; margin-right: 3px; vertical-align: -2px; }
 .week-pick-tag.on.warn { background: #fff1e0; border-color: #c0691a; color: #c0691a; }
 .week-pick-tag.on.rank { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
@@ -1565,20 +1563,24 @@ body:has(.floating-audio-bar.show) .ds-promo { bottom: 150px; }
 .lightbox.mk-on .lightbox-tools { display: none !important; }
 .lightbox.mk-on .lightbox-stage { cursor: crosshair; }
 .lightbox.mk-on[data-mk-tool="move"] .lightbox-stage { cursor: grab; }
-.lb-markacts button { padding: 7px 11px; }
+.lb-markacts button { padding: 6px 10px; }
+.lightbox.mk-on .lightbox-keys { display: none !important; }
+.lightbox.mk-on .lightbox-nav { opacity: .45; width: 34px; height: 54px; }
+.lightbox.mk-on .lightbox-foot { padding-top: 4px; padding-bottom: max(6px, env(safe-area-inset-bottom)); }
+.lightbox.mk-on .lightbox-title { font-size: 13px; }
 .lb-markacts button:disabled { opacity: .3; cursor: default; }
 .lb-markacts button.done { background: var(--primary); font-weight: 650; }
-.lb-markbar { display: none; flex-direction: column; gap: 6px; padding: 8px 10px 6px; background: rgba(11,18,32,0.92); border-top: 1px solid rgba(255,255,255,0.1); z-index: 3; }
+.lb-markbar { display: none; flex-direction: column; gap: 4px; padding: 6px 8px 5px; background: rgba(11,18,32,0.92); border-top: 1px solid rgba(255,255,255,0.1); z-index: 3; }
 .lightbox.mk-on .lb-markbar { display: flex; }
 .lb-mk-row { display: flex; align-items: center; justify-content: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 .lb-mk-row::-webkit-scrollbar { display: none; }
-.lb-tool { flex: none; min-width: 52px; display: flex; flex-direction: column; align-items: center; gap: 1px; background: rgba(255,255,255,0.1); border: 1.5px solid transparent; color: #dbe5f5; border-radius: 12px; padding: 5px 6px 4px; font-size: 11px; font-family: inherit; cursor: pointer; }
-.lb-tool i { font-size: 19px; }
+.lb-tool { flex: none; min-width: 46px; display: flex; flex-direction: column; align-items: center; gap: 0; background: rgba(255,255,255,0.1); border: 1.5px solid transparent; color: #dbe5f5; border-radius: 10px; padding: 3px 5px 2px; font-size: 10.5px; line-height: 1.25; font-family: inherit; cursor: pointer; }
+.lb-tool i { font-size: 17px; }
 .lb-tool.on { background: rgba(29,158,117,0.28); border-color: var(--primary); color: #fff; }
-.lb-dot { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); cursor: pointer; padding: 0; }
+.lb-dot { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); cursor: pointer; padding: 0; }
 .lb-dot.on { border-color: #fff; box-shadow: 0 0 0 2px var(--primary); }
 .lb-sep { flex: none; width: 1px; height: 22px; background: rgba(255,255,255,0.18); margin: 0 4px; }
-.lb-size { flex: none; width: 34px; height: 30px; border-radius: 9px; border: none; background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.lb-size { flex: none; width: 32px; height: 26px; border-radius: 9px; border: none; background: rgba(255,255,255,0.1); color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .lb-size.on { background: var(--primary); }
 .lb-size span { display: block; border-radius: 50%; background: #fff; }
 .lb-mk-hint { text-align: center; font-size: 11px; color: #8294b0; }
@@ -2171,7 +2173,7 @@ body:has(.floating-audio-bar.show) .ds-promo { bottom: 150px; }
       <button type="button" class="lb-tool" data-tool="tx" onclick="mkSetTool('tx')"><i class="ti ti-typography"></i>文字</button>
     </div>
     <div class="lb-mk-row" id="lbColorRow"></div>
-    <div class="lb-mk-hint" id="lbMkHint"></div>
+    <div class="lb-mk-hint" id="lbMkHint" style="display:none"></div>
   </div>
   <div class="lightbox-keys" id="lightboxKeys"></div>
   <div class="lightbox-foot">
@@ -4251,7 +4253,7 @@ function songLibRecentCardHtml(w){
 }
 // 点谱图：以这一周的全部歌谱为列表打开大图查看器
 function songLibWeekLbList(key){
-  return (songData[key] || []).filter(s => s && s.src).map(e => Object.assign({}, e, { markOwner: e, markCommit: songLibWeekMarksCommit }));
+  return (songData[key] || []).filter(s => s && s.src).map(e => Object.assign({}, e, { markOwner: e }));   // 只读：显示标记，不能改
 }
 function songLibRecentOpenImage(key, i){
   const raw = songData[key] || [];
@@ -7546,7 +7548,7 @@ const mk = { on: false, tool: 'pen', color: MK_COLORS[0], size: 1, show: true, s
 function mkHash(str){ let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
 function mkKeyOf(s){ return s && s.src ? mkHash(String(s.src).replace(/\?.*$/, '')) : ''; }
 function mkOwner(s){ if (!s) return null; try { return typeof s.getMarkOwner === 'function' ? s.getMarkOwner() : (s.markOwner || null); } catch (_) { return null; } }
-function mkCanEdit(s){ return !!(s && s.src && isAdmin && mkOwner(s)); }
+function mkCanEdit(s){ return !!(s && s.src && isAdmin && typeof s.getMarkOwner === 'function' && mkOwner(s)); }   // 只有「选本周诗歌」里打开的谱子才能涂改
 function mkStrokesOf(s){ const o = mkOwner(s), k = mkKeyOf(s), a = o && o.marks && o.marks[k]; return Array.isArray(a) ? a : []; }
 function mkR4(v){ return Math.round(v * 10000) / 10000; }
 function mkClone(a){ return JSON.parse(JSON.stringify(a)); }
@@ -7707,7 +7709,7 @@ function lightboxTogglePick(){
 }
 function mkSyncUI(){
   const lb = lbvEl('lightbox'); if (!lb) return;
-  const s = mk.song, ctxOk = !!(s && (s.markOwner || s.getMarkOwner) && s.src && isAdmin), canPick = !!(s && typeof s.pickToggle === 'function');
+  const s = mk.song, ctxOk = !!(s && typeof s.getMarkOwner === 'function' && s.src && isAdmin), canPick = !!(s && typeof s.pickToggle === 'function');
   const hasMarks = mk.strokes.length > 0;
   lb.classList.toggle('mk-on', mk.on);
   lb.dataset.mkTool = mk.tool;
@@ -7739,7 +7741,8 @@ function mkSyncUI(){
     er: '橡皮：擦掉你画的标记 / 涂白（不会擦到原谱）',
     tx: '文字：点谱面想写字的地方，输入后回车',
   }[mk.tool] || '';
-  lbvEl('lbMkHint').textContent = hint + (s && s.markHint ? ' · ' + s.markHint : ' · 停笔后自动保存到云端');
+  lbvEl('lbMkHint').textContent = '';
+  lb.querySelectorAll('.lb-tool').forEach(b => { b.title = b.dataset.tool === mk.tool ? hint : ''; });
   mkSyncCanvasVis();
 }
 
