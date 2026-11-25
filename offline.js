@@ -11,7 +11,7 @@
 
   let packs = {};                                   // id → { type, key, label, urls, at }
   try { packs = JSON.parse(localStorage.getItem(LS_PACKS) || '{}') || {}; } catch (e) { packs = {}; }
-  const savePacks = () => { try { localStorage.setItem(LS_PACKS, JSON.stringify(packs)); } catch (e) {} };
+  const savePacks = () => { try { localStorage.setItem(LS_PACKS, JSON.stringify(packs)); } catch (e) { slDiag(e, 'top'); } };
 
   let rows = [];                                    // 当前窗口里列出的谱包
   let busy = null;                                  // 正在下载：{ idx, cancel }
@@ -115,7 +115,7 @@
     if (!navigator.onLine) { showToast('现在没有网络，连上网再下载'); return; }
     const urls = row.urls.slice();
     if (!urls.length) { showToast('这个谱包里没有可缓存的谱图'); return; }
-    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}   // 请求「别在空间紧张时清掉我」
+    try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { slDiag(e, 'download'); }   // 请求「别在空间紧张时清掉我」
     busy = { idx: i, cancel: false };
     renderBody(true);
     const cache = await caches.open(OL_CACHE);
@@ -155,7 +155,7 @@
 
   async function remove(i) {
     const row = rows[i]; if (!row || busy) return;
-    if (!confirm(`删除「${row.label}」的离线谱图？删除后没信号就看不到这些谱了。`)) return;
+    if (!(await slConfirm(`删除「${row.label}」的离线谱图？删除后没信号就看不到这些谱了。`))) return;
     const cache = await caches.open(OL_CACHE);
     const mine = new Set((packs[row.id] && packs[row.id].urls) || row.urls);
     delete packs[row.id];
@@ -203,10 +203,11 @@
     rows = buildRows();
     for (const r of rows) r.cached = await cachedCount(r.urls);
     let est = null;
-    try { if (navigator.storage && navigator.storage.estimate) est = await navigator.storage.estimate(); } catch (e) {}
+    try { if (navigator.storage && navigator.storage.estimate) est = await navigator.storage.estimate(); } catch (e) { slDiag(e, 'render'); }
     const env = $('olEnv'); if (env) env.innerHTML = envHtml(est);
     await renderBody();
     renderImportBox();
+    diagInfo();
   }
 
   // ─────────── 整库导出 / 导入 ───────────
@@ -260,7 +261,7 @@
 
   async function afterImport(msg) {
     persistSongLibrary(); persistSongLibFavorites(); persistSongLibCategories(); persistSongLibSongbooks(); persistSongLibTags();
-    try { songLibCacheRemoteState(); } catch (e) {}
+    try { songLibCacheRemoteState(); } catch (e) { slDiag(e, 'afterImport'); }
     renderSongLibFilterBar(); renderSongLibraryGrid(); updateSongLibImportHint();
     staged = null; renderImportBox(); render();
     showToast(msg, 3000);
@@ -291,7 +292,7 @@
 
   async function doOverwrite() {
     if (!isAdmin || !staged) return;
-    if (!confirm(`将用备份（${staged.songLibrary.length} 首诗歌）覆盖现在的全部诗歌库数据，本机和云端都会被替换。\n覆盖前会先自动下载一份当前数据，确定继续吗？`)) return;
+    if (!(await slConfirm(`将用备份（${staged.songLibrary.length} 首诗歌）覆盖现在的全部诗歌库数据，本机和云端都会被替换。\n覆盖前会先自动下载一份当前数据，确定继续吗？`))) return;
     exportAll('_覆盖前');
     const d = staged;
     songLibrary = normalizeSongLibrary(d.songLibrary);
@@ -338,7 +339,25 @@
   window.addEventListener('online', () => { netState(); showToast('✅ 网络已恢复'); });
   netState();
 
+  // ─────────── 问题排查 ───────────
+  function diagInfo() {
+    const el = $('olDiagInfo'); if (!el) return;
+    const n = slDiagList().length;
+    el.textContent = `页面出错时会自动记在本机（不含密码和账号），目前有 ${n} 条记录。遇到问题时点「复制」或「导出」，发给管理员就能快速定位。`;
+  }
+  async function copyDiag() { await songLibCopyText(await slDiagReport(), '✅ 诊断信息已复制，可以直接发给管理员'); }
+  async function exportDiag() {
+    const text = await slDiagReport();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    a.download = `诗歌库诊断_${stamp()}.txt`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+  function clearDiag() { slDiagClear(); diagInfo(); showToast('已清除错误记录'); }
+
   window.OL = {
+    copyDiag, exportDiag, clearDiag,
     open, close, tap: download, del: remove, exportAll: () => exportAll(), pickImport,
     doMerge, doOverwrite, doFavorites, cancelImport: () => { staged = null; renderImportBox(); },
   };

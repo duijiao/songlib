@@ -3,22 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>诗歌库</title>
+<title>巴西华人基督教会诗歌库</title>
 <meta name="description" id="metaDescTag" content="教会诗歌库：歌谱、歌词、在线收听与专属搜索">
 <meta property="og:title" id="metaOgTitleTag" content="诗歌库">
 <meta property="og:description" id="metaOgDescTag" content="教会诗歌库：歌谱、歌词、在线收听与专属搜索">
 <meta property="og:image" id="metaOgImageTag" content="">
+<meta name="theme-color" content="#1D9E75">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="诗歌库">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261125">
+<link rel="stylesheet" href="styles.css?v=20261129">
 </head>
 <body>
 <div class="app">
 
 <div class="song-lib-page open tab-home" id="songLibraryOverlay">
   <div class="song-lib-page-top">
-    <div class="song-lib-page-title">诗歌库</div>
+    <div class="song-lib-page-title">诗歌库2.0</div>
     <div class="song-lib-page-top-right">
       <button class="song-lib-page-search-btn" id="songLibSearchToggleBtn" onclick="toggleSongLibSearch()" title="搜索" aria-label="搜索"><i class="ti ti-search"></i></button>
       <button class="song-lib-page-search-btn" id="songLibStorageBtn" style="display:none" onclick="openSongLibStorageSettings()" title="音乐存储设置" aria-label="音乐存储设置"><i class="ti ti-settings"></i></button>
@@ -41,11 +49,17 @@
         <span>检测到 <strong id="songLibDupCount">0</strong> 组同名歌曲，点击合并成一首（合并后可切换不同谱）</span>
         <i class="ti ti-chevron-right"></i>
       </div>
+      <div class="song-lib-stale-hint" id="songLibStaleHint" onclick="songLibShowStale()">
+        <i class="ti ti-hourglass-high"></i>
+        <span>有 <strong id="songLibStaleCount">0</strong> 首歌已超过 <span id="songLibStaleWk"></span>没唱了，点击查看</span>
+        <button type="button" class="stale-x" onclick="songLibDismissStaleHint(event)" aria-label="7 天内不再提示"><i class="ti ti-x"></i></button>
+      </div>
       <div class="song-lib-search-wrap" id="songLibSearchWrap">
         <i class="ti ti-search song-lib-search-icon"></i>
-        <input class="song-lib-search-input" id="songLibSearchInput" type="text" placeholder="搜索歌名（可输入拼音首字母，如 qydn）" enterkeyhint="search" oninput="onSongLibrarySearch()" onkeydown="onSongLibSearchKey(event)" autocomplete="off">
+        <input class="song-lib-search-input" id="songLibSearchInput" type="text" placeholder="搜索歌名（可输入拼音首字母，如 qydn）" enterkeyhint="search" oninput="onSongLibrarySearch()" onkeydown="onSongLibSearchKey(event)" onfocus="songLibSuggShow()" onblur="songLibSuggHideSoon()" onchange="songLibRecordSearch(this.value)" autocomplete="off">
         <button class="song-lib-search-clear" id="songLibSearchClear" onclick="clearSongLibrarySearch()"><i class="ti ti-x"></i></button>
         <button class="song-lib-search-go" id="songLibSearchGo" type="button" onclick="onSongLibSearchGo()">搜索</button>
+        <div class="song-lib-sugg" id="songLibSugg"></div>
       </div>
       <!-- 搜索范围：诗歌库（本库）/ 专属搜索（诗歌本、赞美网接口） -->
       <div class="song-lib-ds-switch" id="songLibDsSwitch">
@@ -54,6 +68,7 @@
       </div>
       <!-- 工具栏：数量 / 筛选按钮（打开底部抽屉）/ 视图切换（瀑布流·列表） -->
       <div id="songLibWeekHost"></div>
+      <div id="songLibCongHost"></div>
       <div class="song-lib-toolbar" id="songLibToolbar">
         <div class="song-lib-count" id="songLibCount"></div>
         <button class="song-lib-filter-btn" id="songLibFilterBtn" onclick="openSongLibFilter()"><i class="ti ti-adjustments-horizontal"></i><span id="songLibFilterBtnLabel">筛选</span></button>
@@ -148,6 +163,10 @@
     </div>
     <div class="song-lib-filter-sec gap">本周卡片（首页顶部；搜索时自动隐藏）</div>
     <div class="song-lib-filter-chips" id="songLibWeekPrefBar"></div>
+    <div class="song-lib-filter-sec gap">会众卡片（点歌建议箱和本周主题）</div>
+    <div class="song-lib-filter-chips" id="sgCardPrefBar"></div>
+    <div class="song-lib-filter-sec gap">使用情况（提醒很久没唱的歌）</div>
+    <div class="song-lib-filter-chips" id="songLibUsageBar"></div>
     <div class="song-lib-filter-sec gap">诗歌本</div>
     <div class="song-lib-filter-chips" id="songLibFilterBar"></div>
     <div class="song-lib-filter-sec gap">主题标签（可多选，歌曲需同时包含所选标签）</div>
@@ -191,6 +210,22 @@
   </div>
 </div>
 
+<!-- ── 导出 PDF ── -->
+<div class="modal-overlay" id="songLibExportOverlay" onclick="SLPDF.close(event)">
+  <div class="song-lib-filter-drawer" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto">
+    <div class="picker-handle"></div>
+    <div class="song-lib-filter-head"><div class="song-lib-filter-title">导出 PDF 歌本</div></div>
+    <div class="song-lib-filter-sec">导出范围</div>
+    <div class="song-lib-filter-chips" id="expScopeBar"></div>
+    <div class="song-lib-filter-sec gap">内容</div>
+    <div class="song-lib-filter-chips" id="expContentBar"></div>
+    <div class="mg-tip" id="expTip" style="margin-top:12px"></div>
+    <div class="exp-prog" id="expProg" hidden><div class="exp-bar"><i id="expProgBar"></i></div><span id="expProgTxt"></span></div>
+    <div class="exp-done" id="expDone" hidden><i class="ti ti-circle-check"></i><span id="expDoneTxt"></span></div>
+    <div class="drawer-actions"><button class="btn-cancel" onclick="SLPDF.close()">关闭</button><button class="btn-cancel" id="expAgain" hidden onclick="SLPDF.again()">重新设置</button><button class="btn-save" id="expGoBtn">生成 PDF</button></div>
+  </div>
+</div>
+
 <!-- ── 同名歌曲合并 ── -->
 <div class="modal-overlay" id="songLibMergeOverlay" onclick="closeSongLibMerge(event)">
   <div class="song-lib-filter-drawer" onclick="event.stopPropagation()" style="max-height:88vh;overflow-y:auto">
@@ -210,6 +245,11 @@
     <div class="mg-tip">选一周或一个诗歌本，点「下载」把谱图存到这台设备里，教会没信号也能看。每周选了新歌后，回来点「更新」补齐。</div>
     <div class="ol-env" id="olEnv"></div>
     <div id="olBody"></div>
+    <div class="ol-sec-title">导出 PDF 歌本</div>
+    <div class="mg-tip">把诗歌库或某个诗歌本导出成 PDF，方便打印或发给别人。</div>
+    <div class="ol-stage-btns">
+      <button class="ol-btn" id="songLibExportBtn" onclick="OL.close();SLPDF.open()"><i class="ti ti-file-type-pdf"></i> 导出 PDF 歌本</button>
+    </div>
     <div class="ol-sec-title">数据备份</div>
     <div class="mg-tip">导出整个诗歌库（歌曲、标签、分类、诗歌本、使用记录、收藏）为一个文件，换设备或出问题时可以恢复。</div>
     <div class="ol-stage-btns">
@@ -218,6 +258,13 @@
     </div>
     <input type="file" id="olFile" accept="application/json,.json" hidden onchange="OL.pickImport(this)">
     <div id="olImportBox"></div>
+    <div class="ol-sec-title">问题排查</div>
+    <div class="mg-tip" id="olDiagInfo">页面出错时会自动记在本机（不含密码和账号）。遇到问题时点「复制」或「导出」，发给管理员就能快速定位。</div>
+    <div class="ol-stage-btns">
+      <button class="ol-btn" onclick="OL.copyDiag()"><i class="ti ti-copy"></i> 复制诊断信息</button>
+      <button class="ol-btn ghost" onclick="OL.exportDiag()"><i class="ti ti-file-text"></i> 导出</button>
+      <button class="ol-btn ghost" onclick="OL.clearDiag()">清除记录</button>
+    </div>
     <div class="drawer-actions"><button class="btn-cancel" onclick="OL.close()">关闭</button></div>
   </div>
 </div>
@@ -228,6 +275,7 @@
     <div class="picker-handle"></div>
     <div class="week-pick-title">选本周诗歌</div>
     <div class="week-pick-sub" id="weekPickSub"></div>
+    <div class="sg-pickbox" id="weekPickThemeBox"></div>
     <input class="week-pick-search" id="weekPickSearch" type="text" placeholder="搜索诗歌库（歌名 / 拼音首字母 / 标签）" oninput="renderWeekPick()" autocomplete="off">
     <div class="week-pick-filters" id="weekPickFilterBar"></div>
     <div class="week-pick-tagbar" id="weekPickTagBar"></div>
@@ -660,7 +708,9 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261125"></script>
-<script defer src="offline.js?v=20261125"></script>
+<script defer src="app.js?v=20261201"></script>
+<script defer src="offline.js?v=20261129"></script>
+<script defer src="export-pdf.js?v=20261129"></script>
+<script defer src="suggest.js?v=20261201"></script>
 </body>
 </html>
