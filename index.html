@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>巴西华人基督教会诗歌库</title>
+<title>诗歌库</title>
 <meta name="description" id="metaDescTag" content="教会诗歌库：歌谱、歌词、在线收听与专属搜索">
 <meta property="og:title" id="metaOgTitleTag" content="诗歌库">
 <meta property="og:description" id="metaOgDescTag" content="教会诗歌库：歌谱、歌词、在线收听与专属搜索">
@@ -19,14 +19,16 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261129">
+<link rel="stylesheet" href="styles.css?v=20261205">
+<link rel="stylesheet" href="elder.css?v=20261201">
+<script>try{var q=new URLSearchParams(location.search).get("elder"),v=(q==="1"||q==="0")?q:localStorage.getItem("songlibElder");if(v==="1"){var h=document.documentElement;h.classList.add("elder");var n=+localStorage.getItem("songlibElderScale")||0;h.style.setProperty("--es",[1,1.15,1.3][n]||1)}}catch(e){}</script>
 </head>
 <body>
 <div class="app">
 
 <div class="song-lib-page open tab-home" id="songLibraryOverlay">
   <div class="song-lib-page-top">
-    <div class="song-lib-page-title">诗歌库2.0</div>
+    <div class="song-lib-page-title">诗歌库</div>
     <div class="song-lib-page-top-right">
       <button class="song-lib-page-search-btn" id="songLibSearchToggleBtn" onclick="toggleSongLibSearch()" title="搜索" aria-label="搜索"><i class="ti ti-search"></i></button>
       <button class="song-lib-page-search-btn" id="songLibStorageBtn" style="display:none" onclick="openSongLibStorageSettings()" title="音乐存储设置" aria-label="音乐存储设置"><i class="ti ti-settings"></i></button>
@@ -165,7 +167,7 @@
     <div class="song-lib-filter-chips" id="songLibWeekPrefBar"></div>
     <div class="song-lib-filter-sec gap">会众卡片（点歌建议箱和本周主题）</div>
     <div class="song-lib-filter-chips" id="sgCardPrefBar"></div>
-    <div class="song-lib-filter-sec gap">使用情况（提醒很久没唱的歌）</div>
+    <div class="song-lib-filter-sec gap" id="songLibUsageSec">使用情况（提醒很久没唱的歌）</div>
     <div class="song-lib-filter-chips" id="songLibUsageBar"></div>
     <div class="song-lib-filter-sec gap">诗歌本</div>
     <div class="song-lib-filter-chips" id="songLibFilterBar"></div>
@@ -269,23 +271,47 @@
   </div>
 </div>
 
-<!-- ── 本周选歌：从诗歌库里勾选，需管理员登录 ── -->
-<div class="modal-overlay" id="weekPickOverlay" onclick="closeWeekPick(event)">
-  <div class="week-pick-drawer" onclick="event.stopPropagation()">
-    <div class="picker-handle"></div>
-    <div class="week-pick-title">选本周诗歌</div>
-    <div class="week-pick-sub" id="weekPickSub"></div>
-    <div class="sg-pickbox" id="weekPickThemeBox"></div>
-    <input class="week-pick-search" id="weekPickSearch" type="text" placeholder="搜索诗歌库（歌名 / 拼音首字母 / 标签）" oninput="renderWeekPick()" autocomplete="off">
-    <div class="week-pick-filters" id="weekPickFilterBar"></div>
-    <div class="week-pick-tagbar" id="weekPickTagBar"></div>
-    <div class="week-pick-resultcount" id="weekPickResultCount"></div>
-    <div class="week-pick-chips" id="weekPickChips"></div>
-    <div class="week-pick-list" id="weekPickList"></div>
-    <div class="drawer-actions">
-      <button class="btn-cancel" onclick="closeWeekPick()">取消</button>
-      <button class="btn-save" id="weekPickSave" onclick="saveWeekPick()">保存</button>
+<!-- ── 本周选歌：独立全屏页面（从诗歌库里勾选，需管理员登录）；浏览器 / 手机返回键只退出这一页 ── -->
+<div class="week-pick-page" id="weekPickOverlay">
+  <div class="week-pick-top">
+    <button type="button" class="week-pick-back" onclick="closeWeekPick()" aria-label="返回" title="返回"><i class="ti ti-arrow-left"></i></button>
+    <div class="week-pick-headtxt">
+      <div class="week-pick-title">选本周诗歌</div>
+      <div class="week-pick-sub" id="weekPickSub"></div>
     </div>
+    <button type="button" class="btn-save week-pick-savebtn" id="weekPickSave" onclick="saveWeekPick()">保存</button>
+  </div>
+  <div class="week-pick-body">
+    <div class="sg-pickbox" id="weekPickThemeBox"></div>
+    <div class="week-pick-searchrow">
+      <div class="week-pick-searchwrap">
+        <i class="ti ti-search"></i>
+        <input class="week-pick-search" id="weekPickSearch" type="search" placeholder="搜索歌名 / 拼音首字母 / 标签" oninput="renderWeekPick()" autocomplete="off" enterkeyhint="search">
+      </div>
+      <button class="song-lib-filter-btn" id="weekPickFilterBtn" type="button" onclick="openWeekPickFilter()"><i class="ti ti-adjustments-horizontal"></i><span id="weekPickFilterBtnLabel">筛选</span></button>
+    </div>
+    <div class="week-pick-resultcount" id="weekPickResultCount"></div>
+    <div class="week-pick-list" id="weekPickList"></div>
+  </div>
+  <div class="week-pick-selbar" id="weekPickSelBar">
+    <div class="week-pick-chips" id="weekPickChips"></div>
+    <button type="button" class="week-pick-seltoggle" id="weekPickSelToggle" onclick="toggleWeekPickSel()"></button>
+  </div>
+</div>
+
+<!-- 选歌页的筛选抽屉（和首页筛选一样放在搜索旁边的按钮里） -->
+<div class="modal-overlay" id="weekPickFilterOverlay" onclick="closeWeekPickFilter(event)">
+  <div class="song-lib-filter-drawer" onclick="event.stopPropagation()" style="max-height:80vh;overflow-y:auto">
+    <div class="picker-handle"></div>
+    <div class="song-lib-filter-head">
+      <div class="song-lib-filter-title">筛选</div>
+      <button class="song-lib-filter-reset" onclick="resetWeekPickFilter()">重置</button>
+    </div>
+    <div class="song-lib-filter-sec">快捷筛选 / 排序</div>
+    <div class="week-pick-filters" id="weekPickFilterBar"></div>
+    <div class="song-lib-filter-sec gap">主题标签（可多选，歌曲需同时包含所选标签）</div>
+    <div class="week-pick-tagbar" id="weekPickTagBar"></div>
+    <div class="drawer-actions"><button class="btn-save" onclick="closeWeekPickFilter()">完成（<span id="weekPickFilterCount">0</span> 首）</button></div>
   </div>
 </div>
 
@@ -617,6 +643,7 @@
     <button type="button" class="lb-normal lb-rename" id="lightboxRenameBtn" style="display:none" onclick="lightboxRenameSong()" title="修改歌名（管理员）"><i class="ti ti-pencil"></i></button>
     <div class="lightbox-acts">
       <button type="button" id="lightboxLyricsBtn" class="lb-normal" style="display:none" onclick="lightboxToggleLyrics()" title="查看歌词（L）"><i class="ti ti-file-text"></i><span>歌词</span></button>
+      <button type="button" id="lightboxFixBtn" class="lb-normal" style="display:none" onclick="FX.open()" title="发现歌谱有错？告诉我们"><i class="ti ti-flag"></i><span>纠错</span></button>
       <button type="button" id="lightboxSave" class="lb-normal" onclick="downloadLightboxImage()" title="保存图片（有标记时保存带标记的图）"><i class="ti ti-download"></i><span>保存</span></button>
       <button type="button" id="lightboxOpen" class="lightbox-hide-m lb-normal" onclick="openLightboxOriginal()">新窗口原图</button>
       <button type="button" id="lightboxClose" class="lb-normal" onclick="closeLightbox()">✕ 关闭</button>
@@ -644,6 +671,7 @@
   </div>
   <div class="lightbox-tools" id="lightboxTools">
     <button type="button" id="lightboxPickBtn" style="display:none" onclick="lightboxTogglePick()"><i class="ti ti-circle-plus"></i><span>选入本周</span></button>
+    <button type="button" id="lightboxTeachBtn" class="lb-teach-btn" style="display:none" onclick="lightboxToggleTeach()" title="把这首设为本周教歌"><i class="ti ti-school"></i><span>设为教歌</span></button>
     <button type="button" id="lightboxMarkBtn" style="display:none" onclick="mkToggleMode()" title="在歌谱上标记 / 涂改"><i class="ti ti-writing"></i><span>标记 / 涂改</span></button>
     <button type="button" id="lightboxMarksToggle" style="display:none" onclick="mkToggleShow()" title="显示 / 隐藏标记"><i class="ti ti-eye"></i><span class="lb-txt-d">标记</span></button>
   </div>
@@ -708,9 +736,11 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261201"></script>
+<script defer src="app.js?v=20261205"></script>
 <script defer src="offline.js?v=20261129"></script>
 <script defer src="export-pdf.js?v=20261129"></script>
 <script defer src="suggest.js?v=20261201"></script>
+<script defer src="fix.js?v=20261205"></script>
+<script defer src="elder.js?v=20261201"></script>
 </body>
 </html>

@@ -1557,3 +1557,80 @@ body:has(.floating-audio-bar.show) .ds-promo { bottom: 150px; }
 .sg-close { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border: none; border-radius: 50%; background: var(--bg-subtle); color: var(--text-3); font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .sg-card .sg-row:first-child { padding-right: 38px; }
 .sg-card .sg-row:first-child .sg-chev { display: none; }
+
+/* ── 本周选歌：独立全屏页面（盖在诗歌库上面，比弹窗层 400 低，这样主题 / 点歌箱 / 筛选抽屉仍能盖在它上面）── */
+.week-pick-page { display: none; position: fixed; inset: 0; z-index: 390; background: var(--bg-page, #f6f7f9); flex-direction: column; animation: slideUp 0.2s ease; }
+.week-pick-page.open { display: flex; }
+.week-pick-top { flex: none; display: flex; align-items: center; gap: 8px; padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: #fff; border-bottom: 1px solid var(--border-soft); }
+.week-pick-back { flex: none; width: 38px; height: 38px; border: none; border-radius: 50%; background: var(--bg-subtle); color: var(--text-1); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.week-pick-headtxt { flex: 1; min-width: 0; }
+.week-pick-headtxt .week-pick-sub { margin: 1px 0 0; }
+.week-pick-savebtn { flex: none; width: auto; padding: 8px 20px; border-radius: 999px; }
+.week-pick-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 10px 14px 0; max-width: 720px; width: 100%; margin: 0 auto; }
+.week-pick-body .sg-pickbox { flex: none; max-height: 30vh; overflow-y: auto; }
+.week-pick-searchrow { flex: none; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.week-pick-searchwrap { flex: 1; min-width: 0; position: relative; }
+.week-pick-searchwrap > i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-4); font-size: 16px; pointer-events: none; }
+.week-pick-searchwrap .week-pick-search { margin: 0; padding: 10px 12px 10px 34px; background: #fff; border-radius: 999px; }
+.week-pick-searchrow .song-lib-filter-btn { flex: none; max-width: 40%; padding: 10px 14px; }
+.week-pick-page .week-pick-list { background: #fff; border-radius: 14px; border-top: none; padding: 0 10px; -webkit-overflow-scrolling: touch; }
+.week-pick-page .week-pick-list .week-pick-row:last-child { border-bottom: none; }
+.week-pick-page .week-pick-resultcount { margin-bottom: 6px; }
+/* 底部「已选」栏：默认只显示一行摘要，点开可以调顺序 */
+.week-pick-selbar { flex: none; background: #fff; border-top: 1px solid var(--border-soft); box-shadow: 0 -6px 20px rgba(0,0,0,0.06); padding: 8px 14px max(8px, env(safe-area-inset-bottom)); display: flex; flex-direction: column-reverse; gap: 6px; }
+.week-pick-selbar .week-pick-chips { max-height: 38vh; margin: 0; max-width: 720px; width: 100%; align-self: center; }
+.week-pick-selbar .week-pick-chips.collapsed { display: none; }
+.week-pick-seltoggle { max-width: 720px; width: 100%; align-self: center; border: none; background: var(--primary-light); color: var(--primary); font-weight: 700; font-size: 13.5px; font-family: inherit; border-radius: 12px; padding: 10px 14px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.week-pick-seltoggle.empty { background: var(--bg-subtle); color: var(--text-3); cursor: default; }
+#weekPickFilterOverlay .week-pick-filters, #weekPickFilterOverlay .week-pick-tagbar { max-height: none; overflow: visible; margin-bottom: 4px; }
+
+/* 专属搜索结果里的「加入诗歌库」按钮 */
+.ds-add-btn { color: var(--primary); }
+.ds-add-btn.added { background: var(--primary); color: #fff; }
+.ds-add-btn.busy { opacity: .45; pointer-events: none; animation: dsAddPulse .8s ease-in-out infinite alternate; }
+@keyframes dsAddPulse { from { transform: scale(1); } to { transform: scale(.88); } }
+
+/* ═══════ 本周教歌 ═══════ */
+.week-pick-sel button.tc { color: #b45309; }
+.week-pick-sel button.tc.on { background: #f59e0b; color: #fff; }
+.week-pick-tcbadge { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 600; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 0 6px; margin-left: 6px; vertical-align: 1px; }
+.week-pick-tcbadge i { font-size: 12px; }
+.week-pick-selhead i { vertical-align: -2px; color: #b45309; }
+.week-pick-teachsum { font-size: 12.5px; line-height: 1.6; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 7px 10px; margin-top: 2px; }
+.week-pick-teachsum i { vertical-align: -2px; }
+.tc-badge { position: absolute; left: 5px; top: 5px; display: flex; align-items: center; gap: 2px; background: #f59e0b; color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 6px; pointer-events: none; }
+.tc-badge i { font-size: 12px; color: #fff !important; }
+.song-lib-weekteach { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+.song-lib-weekteach > i { font-size: 15px; color: #b45309; }
+.song-lib-weekteach .lbl { font-size: 12px; color: var(--text-3); margin-right: 2px; }
+.song-lib-teachchip { border: none; background: #fef3c7; color: #92400e; font-weight: 600; font-size: 12.5px; border-radius: 999px; padding: 3px 10px; cursor: pointer; font-family: inherit; }
+.song-lib-teachchip:active { background: #fde68a; }
+.lb-teach-tag { display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; background: #f59e0b; color: #fff; border-radius: 999px; font-size: 11px; font-weight: 600; padding: 1px 7px; vertical-align: 2px; }
+.lb-teach-tag i { font-size: 12px; }
+.lightbox-tools button.lb-teach-btn.on { background: #f59e0b; }
+.wsc-list .tag.tc { background: #fef3c7; color: #92400e; font-weight: 600; }
+
+/* ═══════ 歌谱纠错 ═══════ */
+#fxOverlay, #fxInboxOverlay { z-index: 520; }
+.fx-song { font-size: 13px; color: var(--text-2); margin: 0 0 10px; line-height: 1.6; }
+.fx-song b { color: var(--text-1); }
+.fx-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.fx-text { width: 100%; box-sizing: border-box; min-height: 84px; resize: vertical; border: 1.5px solid rgba(0,0,0,0.1); border-radius: 12px; padding: 9px 12px; font-size: 15px; font-family: inherit; outline: none; margin-bottom: 8px; line-height: 1.5; }
+.fx-text:focus { border-color: var(--primary); }
+.fx-tip { font-size: 12px; color: var(--text-3); margin: 0 0 10px; line-height: 1.6; }
+.fx-submit { width: 100%; flex: none; }
+.fx-submit:disabled { opacity: .5; }
+.fx-sec { font-size: 12.5px; font-weight: 700; color: var(--text-2); margin: 14px 0 4px; }
+.fx-item { padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
+.fx-item.done { opacity: .55; }
+.fx-item-h { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 14px; font-weight: 700; color: var(--text-1); }
+.fx-kind { font-size: 11px; font-weight: 600; color: #b45309; background: #fef3c7; border-radius: 999px; padding: 1px 8px; }
+.fx-detail { font-size: 13.5px; color: var(--text-1); line-height: 1.6; margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fx-meta { font-size: 11.5px; color: var(--text-4); margin-top: 3px; }
+.fx-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.fx-acts button { border: 1.5px solid var(--border-soft); background: #fff; color: var(--text-2); border-radius: 999px; padding: 4px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; gap: 4px; }
+.fx-acts button.ok { border-color: var(--primary); color: var(--primary-dark); }
+.fx-acts button.del { color: #d9534f; }
+#fxInboxBtn { position: relative; }
+.fx-dot { position: absolute; right: 2px; top: 2px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 999px; background: #e53935; color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+.fx-dot:empty { display: none; }

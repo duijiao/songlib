@@ -1,0 +1,106 @@
+/* ═══════════════════════════════════════════════════════════
+ * 长辈模式（大字极简）—— 只在 <html class="elder"> 时生效，标准版不受任何影响
+ * 字号倍数由 --es 控制（1 / 1.15 / 1.3），在页面右上角「字号」按钮里切换
+ * ═══════════════════════════════════════════════════════════ */
+
+/* ── 顶栏：只留「字号」和「标准版」两个按钮 ── */
+.elder-btn { gap: 4px; }
+.elder-btn span { display: none; }
+html:not(.elder) #elderFontBtn { display: none; }
+
+html.elder .song-lib-page-top-right > button:not(.elder-btn) { display: none !important; }
+html.elder .song-lib-page-top { padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: 16px; }
+html.elder .song-lib-page-title { font-size: calc(28px * var(--es, 1)); letter-spacing: 1px; }
+html.elder .song-lib-page-top-right { gap: 8px; }
+html.elder .elder-btn {
+  width: auto; height: 46px; padding: 0 16px; border-radius: 23px;
+  background: var(--bg-subtle); color: var(--text-1);
+  font-size: 19px; font-weight: 700; font-family: inherit;
+}
+html.elder .elder-btn i { font-size: 22px; }
+html.elder .elder-btn span { display: inline; }
+
+/* ── 标签：只留 首页 / 最近使用 / 我的收藏（隐藏「诗歌本」），字更大 ── */
+html.elder .song-lib-tab { font-size: calc(21px * var(--es, 1)); padding: 14px 4px 14px; border-bottom-width: 4px; }
+html.elder .song-lib-tab:nth-child(3) { display: none; }   /* 诗歌本 */
+
+/* ── 首页上所有「次要」的东西全部藏起来 ── */
+html.elder .song-lib-import-hint,
+html.elder .song-lib-dup-hint,
+html.elder .song-lib-stale-hint,
+html.elder #songLibDsSwitch,
+html.elder #songLibCongHost,
+html.elder #songLibToolbar,
+html.elder .song-lib-foot-note,
+html.elder #dsPromo,
+html.elder .song-lib-search-cta,
+html.elder .song-lib-weekedit,
+html.elder .song-lib-weekpick-btn,
+html.elder .mk-badge,
+html.elder .song-lib-rank { display: none !important; }
+
+/* ── 搜索框：又大又清楚 ── */
+html.elder .song-lib-search-wrap { padding: 6px 6px 6px 18px; border-width: 2px; border-color: var(--primary); margin: 6px 0 16px; gap: 10px; }
+html.elder .song-lib-search-icon { font-size: 26px; }
+html.elder .song-lib-search-input { font-size: calc(22px * var(--es, 1)); padding: 14px 2px; }
+html.elder .song-lib-search-clear { width: 36px; height: 36px; font-size: 18px; }
+html.elder .song-lib-search-go { height: 54px; padding: 0 26px; font-size: 21px; }
+html.elder .song-lib-sugg * { font-size: calc(20px * var(--es, 1)) !important; }
+
+/* ── 本周诗歌卡片：竖着排，一首一行，字大 ── */
+html.elder .song-lib-weekcard { border-radius: 22px; padding: 18px 0; border-width: 2px; }
+html.elder .song-lib-weekhead { padding: 0 18px 12px; align-items: center; }
+html.elder .song-lib-weektitle { font-size: calc(26px * var(--es, 1)); }
+html.elder .song-lib-weekdate, html.elder .song-lib-weekcount { font-size: calc(19px * var(--es, 1)); }
+html.elder .song-lib-weeklead { padding: 0 18px 14px; gap: 8px; }
+html.elder .song-lib-weeklead-lbl { font-size: calc(18px * var(--es, 1)); }
+html.elder .song-lib-leadchip { font-size: calc(19px * var(--es, 1)); padding: 4px 12px; }
+html.elder .song-lib-weekrow { flex-direction: column; overflow: visible; gap: 12px; padding: 0 14px 2px; }
+html.elder .song-lib-weekitem {
+  display: flex; align-items: center; gap: 16px; width: auto; max-width: none; min-width: 0;
+  margin: 0 !important; padding: 12px; border-radius: 16px; background: var(--bg-subtle); cursor: pointer;
+}
+html.elder .song-lib-weekitem:active { background: var(--primary-light); }
+html.elder .song-lib-weekthumb { width: 76px; flex: none; }
+html.elder .song-lib-weeksong {
+  flex: 1; margin: 0; font-size: calc(24px * var(--es, 1)); font-weight: 700; line-height: 1.4;
+  -webkit-line-clamp: 3;
+}
+html.elder .song-lib-weekempty-body > i { font-size: 42px; }
+html.elder .song-lib-weekempty-txt { font-size: calc(21px * var(--es, 1)); padding-bottom: 6px; }
+
+/* ── 歌曲列表：单列大卡片，只保留 缩略图 + 歌名 + ♡ ── */
+html.elder .song-lib-grid.view-list { display: flex !important; flex-direction: column; gap: 14px; }
+html.elder .song-lib-card {
+  padding: 14px 16px; gap: 16px; border-radius: 20px; min-height: 92px; align-items: center;
+}
+html.elder .song-lib-card-thumb { width: 72px; height: 72px; border-radius: 12px; }
+html.elder .song-lib-card-title {
+  font-size: calc(24px * var(--es, 1)); font-weight: 700; line-height: 1.4;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+html.elder .song-lib-card-source,
+html.elder .song-lib-card-tags,
+html.elder .song-lib-card-meta,
+html.elder .song-lib-category-badge,
+html.elder .song-lib-key-count-badge,
+html.elder .song-lib-card-play-btn,
+html.elder .song-lib-selmark { display: none !important; }
+html.elder .song-lib-card-fav-btn { width: 58px; height: 58px; font-size: 32px; }
+html.elder .song-lib-empty { font-size: calc(21px * var(--es, 1)); line-height: 1.7; padding: 40px 12px; }
+html.elder .song-lib-empty i { font-size: 48px; }
+
+/* ── 看谱大图：只留「关闭」，翻页键更大、更好按 ── */
+html.elder #lightboxLyricsBtn,
+html.elder #lightboxSave,
+html.elder #lightboxOpen,
+html.elder #lightboxRenameBtn,
+html.elder #lightboxTools { display: none !important; }
+html.elder .lightbox-title { font-size: calc(22px * var(--es, 1)); font-weight: 700; white-space: normal; padding-left: 6px; }
+html.elder #lightboxClose {
+  font-size: 22px; font-weight: 700; padding: 12px 24px; border-radius: 14px;
+  background: #fff; color: #111; border: none;
+}
+html.elder .lightbox-nav { width: 66px; height: 110px; font-size: 38px; background: rgba(255,255,255,0.3); }
+html.elder .lightbox-nav.prev { left: 6px; }
+html.elder .lightbox-nav.next { right: 6px; }
