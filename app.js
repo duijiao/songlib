@@ -254,6 +254,41 @@ function getSongLibTags() {
 function songLibHasTag(s, t) { const k = t.toLowerCase(); return (s.tags || []).some(x => x.toLowerCase() === k); }
 function songLibTagCount(t) { return songLibrary.filter(s => songLibHasTag(s, t)).length; }
 
+// ── 主题标签防丢：单独存一份「歌曲 id → 标签」到云端 song_lib_song_tags 字段 ──
+// 老版本保存 song_library 时会把不认识的 tags 字段整个去掉；标签单独放在老版本根本不读也不写的字段里，
+// 老版本怎么存都动不了它，打开新版本时再把标签按歌曲 id 贴回去。
+// 需要先在 Supabase 执行 supabase_song_tags.sql 加这一列；没加之前自动退回老做法（标签仍跟着 song_library 走）。
+const SONG_TAGS_FIELD = 'song_lib_song_tags';
+let songTagsSplit = false;      // 云端已有 song_lib_song_tags 这一列
+let slSongTagMap = {};          // 最近一次读到 / 写成功的云端「歌曲 id → 标签」
+function slBuildTagMap() {
+  const m = {};
+  songLibrary.forEach(s => { m[s.id] = normalizeSongLibTagList(s.tags); });
+  return m;
+}
+// 把云端标签表贴到歌曲上：表里有这首歌就以表为准（含「已清空」），没有就保持原样（旧数据 / 还没同步的新歌）
+function slApplyTagMap(list, map) {
+  if (!songTagsSplit || !_isObj(map)) return list;
+  (list || []).forEach(s => { if (Object.prototype.hasOwnProperty.call(map, s.id)) s.tags = normalizeSongLibTagList(map[s.id]); });
+  return list;
+}
+function slTagMapEqual(a, b) {
+  const x = normalizeSongLibTagList(a), y = normalizeSongLibTagList(b);
+  return x.length === y.length && x.every((t, i) => t.toLowerCase() === y[i].toLowerCase());
+}
+// 有歌带标签、但云端标签表里还没有（或不一样）：管理员打开页面时自动补写一次，之后老版本就清不掉了
+async function slSongTagsMigrate() {
+  if (!songTagsSplit || !isAdmin) return;
+  const need = songLibrary.some(s => s.tags && s.tags.length && !(Object.prototype.hasOwnProperty.call(slSongTagMap, s.id) && slTagMapEqual(slSongTagMap[s.id], s.tags)));
+  if (!need) return;
+  try { await slSyncSongTags(); } catch (e) { slDiag(e, 'slSongTagsMigrate'); }
+}
+async function slSyncSongTags() {
+  const mine = slBuildTagMap();
+  await syncRemoteField(SONG_TAGS_FIELD, mine);
+  slSongTagMap = (_lastSyncOut != null && _isObj(_lastSyncOut)) ? _lastSyncOut : mine;
+}
+
 const LS_SONGLIB_SB_CONFIG = 'churchSongLibSbConfig';
 
 let songLibSupabaseConfig = { url: '', anonKey: '', bucket: 'songs' };
@@ -556,7 +591,16 @@ function findSongUsageWeeks(title) {
 async function syncSongLibraryToRemote(successMsg) {
   if (!initSupabaseClient()) return false;
   try {
-    await syncRemoteField('song_library', songLibrary.map(({ lastPlayedAt, ...rest }) => rest));   // 播放时间不上传
+    if (songTagsSplit) {
+      // 标签单独存（先写标签，再写歌曲）；song_library 里不再放 tags，老版本重写它也就丢不了东西
+      try { await slSyncSongTags(); }
+      catch (e) { if (isMissingRemoteColumnError(e, SONG_TAGS_FIELD)) songTagsSplit = false; else throw e; }
+    }
+    await syncRemoteField('song_library', songLibrary.map(({ lastPlayedAt, tags, ...rest }) => songTagsSplit ? rest : { ...rest, tags }));   // 播放时间不上传
+    if (!songTagsSplit && isAdmin && !syncSongLibraryToRemote._warned && songLibrary.some(s => s.tags && s.tags.length)) {
+      syncSongLibraryToRemote._warned = true;
+      showToast('⚠️ 云端还没加「标签备份」字段，老版本仍会清掉标签。请在 Supabase 执行 supabase_song_tags.sql', 6000);
+    }
     if (successMsg) showToast(successMsg);
     return true;
   } catch (e) {
@@ -923,7 +967,7 @@ let songLibCategoryFilter = '';
 let songLibSongbookFilter = '';
 
 let songLibTab = 'all'; // 'all'（首页）| 'favorite' | 'recent' | 'books'（诗歌本）
-// 排序：created = 收入时间；pinyin = 拼音首字母；used = 最近使用时间（取自每周排班）
+// 排序：created = 收录时间；pinyin = 拼音首字母；used = 最近使用时间（取自每周排班）
 let songLibSortKey = 'created', songLibSortReverse = false;
 try {
   const o = JSON.parse(localStorage.getItem('songLibSort') || '{}');
@@ -1318,9 +1362,9 @@ function renderSongLibFilterBar(){
     document.getElementById('songLibFilterBtnLabel').textContent = songLibSongbookFilter || tagLabel || (songLibUsageFilter ? (songLibUsageFilter === 'stale' ? '久未使用' : '从未使用') : '') || (sortActive ? sortLabel : '筛选');
   }
 }
-// ── 排序：收入时间 / 拼音首字母 / 最近使用时间 ──
+// ── 排序：收录时间 / 拼音首字母 / 最近使用时间 ──
 const SONGLIB_SORTS = [
-  { id: 'created', label: '收入时间',   icon: 'ti-calendar-plus',          dir: ['新 → 旧', '旧 → 新'] },
+  { id: 'created', label: '收录时间',   icon: 'ti-calendar-plus',          dir: ['新 → 旧', '旧 → 新'] },
   { id: 'pinyin',  label: '拼音首字母', icon: 'ti-sort-ascending-letters', dir: ['A → Z', 'Z → A'] },
   { id: 'used',    label: '最近使用',   icon: 'ti-history',                dir: ['近 → 远', '远 → 近'] },
   { id: 'count',   label: '使用次数',   icon: 'ti-trophy',                 dir: ['多 → 少', '少 → 多'] },
@@ -5057,6 +5101,7 @@ function renderMusicShareCard() {
 }
 
 let _origPageMeta = null;
+const SHARE_COVER_URL = (() => { try { return new URL('icons/share-cover.jpg', location.href).href; } catch (e) { return 'icons/share-cover.jpg'; } })();   // 默认转发封面（单首歌有谱图时优先用谱图）
 
 function updateShareMeta(title, desc, image) {
   if (!_origPageMeta) {
@@ -5073,7 +5118,8 @@ function updateShareMeta(title, desc, image) {
   set('metaDescTag', desc);
   set('metaOgTitleTag', title);
   set('metaOgDescTag', desc);
-  set('metaOgImageTag', image);
+  set('metaOgImageTag', image || SHARE_COVER_URL);
+  set('metaItemImageTag', image || SHARE_COVER_URL);
 }
 
 function restoreShareMeta() {
@@ -5083,7 +5129,8 @@ function restoreShareMeta() {
   set('metaDescTag', _origPageMeta.desc);
   set('metaOgTitleTag', _origPageMeta.ogTitle);
   set('metaOgDescTag', _origPageMeta.ogDesc);
-  set('metaOgImageTag', _origPageMeta.ogImage);
+  set('metaOgImageTag', _origPageMeta.ogImage || SHARE_COVER_URL);
+  set('metaItemImageTag', SHARE_COVER_URL);
   _origPageMeta = null;
 }
 
@@ -5449,7 +5496,8 @@ function slMerge3(base, theirs, mine) {
 // 合并后把结果同步回本机内存 / 本机缓存 / 界面
 function applyMergedField(field, value) {
   try {
-    if (field === 'song_library') { songLibrary = slApplyPlayedLocal(normalizeSongLibrary(value)); persistSongLibrary(); try { renderSongLibFilterBar(); renderSongLibraryGrid(); updateSongLibImportHint(); } catch (e) { slDiag(e, 'applyMergedField.ui'); } }
+    if (field === 'song_library') { songLibrary = slApplyTagMap(slApplyPlayedLocal(normalizeSongLibrary(value)), slSongTagMap); persistSongLibrary(); try { renderSongLibFilterBar(); renderSongLibraryGrid(); updateSongLibImportHint(); } catch (e) { slDiag(e, 'applyMergedField.ui'); } }
+    else if (field === SONG_TAGS_FIELD) { slSongTagMap = _isObj(value) ? value : {}; slApplyTagMap(songLibrary, slSongTagMap); persistSongLibrary(); try { renderSongLibFilterBar(); renderSongLibraryGrid(); } catch (e) { slDiag(e, 'applyMergedField.ui'); } }
     else if (field === 'song_data') { songData = normalizeSongData(value); try { songLibCacheRemoteState(); songLibRenderWeekCard(); } catch (e) { slDiag(e, 'applyMergedField.ui'); } }
     else if (field === 'song_lib_categories') { songLibCategories = normalizeSongLibCategoryList(value); persistSongLibCategories(); try { renderSongLibFilterBar(); } catch (e) { slDiag(e, 'applyMergedField.ui'); } }
     else if (field === 'song_lib_songbooks') { songLibSongbooks = normalizeSongLibSongbookList(value); persistSongLibSongbooks(); try { renderSongLibFilterBar(); } catch (e) { slDiag(e, 'applyMergedField.ui'); } }
@@ -5460,7 +5508,8 @@ function applyMergedField(field, value) {
 }
 
 async function askSyncConflict(field, conflicts) {
-  const names = conflicts.slice(0, 3).map(c => '《' + c.label + '》').join('、') + (conflicts.length > 3 ? ` 等 ${conflicts.length} 项` : '');
+  const lab = c => (field === SONG_TAGS_FIELD ? ((songLibrary.find(x => x.id === c.key) || {}).title || c.label) : c.label);
+  const names = conflicts.slice(0, 3).map(c => '《' + lab(c) + '》').join('、') + (conflicts.length > 3 ? ` 等 ${conflicts.length} 项` : '');
   const keepMine = await _slDialog({
     message: `刚才有别人也改了 ${names}，和你这次的修改冲突。\n\n保留你的修改，会覆盖对方的改动；保留云端的，你这几处修改会被放弃。`,
     okText: '保留我的', cancelText: '保留云端的', danger: false,
@@ -5559,7 +5608,7 @@ const SCHEDULE_PAGE = 'index.html';   // 左上角「返回」回到排班表；
 // 只拉诗歌库相关的几列（旧库缺列时退回 select('*')）
 async function loadRemoteSongState() {
   if (!initSupabaseClient()) return false;
-  const cols = 'song_library,song_lib_storage_config,song_lib_categories,song_lib_songbooks,song_lib_tags,song_data,schedule_data';
+  const cols = 'song_library,song_lib_storage_config,song_lib_categories,song_lib_songbooks,song_lib_tags,' + SONG_TAGS_FIELD + ',song_data,schedule_data';
   let res = await supabaseClient.from(SUPABASE_CONFIG.table).select(cols).eq('id', SUPABASE_CONFIG.rowId).maybeSingle();
   if (res.error) res = await supabaseClient.from(SUPABASE_CONFIG.table).select('*').eq('id', SUPABASE_CONFIG.rowId).maybeSingle();
   if (res.error) throw res.error;
@@ -5567,7 +5616,9 @@ async function loadRemoteSongState() {
   if (!row) return false;
   if (row.song_data !== undefined) songData = normalizeSongData(row.song_data);
   if (row.schedule_data && typeof row.schedule_data === 'object') scheduleData = row.schedule_data;
-  if (row.song_library !== undefined) { songLibrary = slApplyPlayedLocal(normalizeSongLibrary(row.song_library)); persistSongLibrary(); }
+  songTagsSplit = row[SONG_TAGS_FIELD] !== undefined;   // 返回里有这一列，说明云端已经加好了
+  slSongTagMap = _isObj(row[SONG_TAGS_FIELD]) ? row[SONG_TAGS_FIELD] : {};
+  if (row.song_library !== undefined) { songLibrary = slApplyTagMap(slApplyPlayedLocal(normalizeSongLibrary(row.song_library)), slSongTagMap); persistSongLibrary(); }
   if (row.song_lib_storage_config !== undefined) {
     songLibSupabaseConfig = normalizeSongLibSbConfig(row.song_lib_storage_config);
     songLibSupabaseClient = null; persistSongLibSupabaseConfig();
@@ -5575,7 +5626,7 @@ async function loadRemoteSongState() {
   if (row.song_lib_categories !== undefined) { songLibCategories = normalizeSongLibCategoryList(row.song_lib_categories); persistSongLibCategories(); }
   if (row.song_lib_songbooks !== undefined) { songLibSongbooks = normalizeSongLibSongbookList(row.song_lib_songbooks); persistSongLibSongbooks(); }
   if (row.song_lib_tags !== undefined) { songLibTags = normalizeSongLibTagList(row.song_lib_tags); persistSongLibTags(); }
-  ['song_library', 'song_lib_storage_config', 'song_lib_categories', 'song_lib_songbooks', 'song_lib_tags', 'song_data'].forEach(f => { if (row[f] !== undefined) remoteBaseSet(f, row[f]); });   // 记下读到的云端内容，保存时用来判断「谁改了什么」
+  ['song_library', 'song_lib_storage_config', 'song_lib_categories', 'song_lib_songbooks', 'song_lib_tags', SONG_TAGS_FIELD, 'song_data'].forEach(f => { if (row[f] !== undefined) remoteBaseSet(f, row[f]); });   // 记下读到的云端内容，保存时用来判断「谁改了什么」
   songLibCacheRemoteState();   // 存一份到本机，离线打开时「本周诗歌 / 最近使用」才有内容
   return true;
 }
@@ -5632,6 +5683,7 @@ async function syncAuthState() {
   const { data } = await supabaseClient.auth.getSession();
   isAdmin = !!data?.session;
   updateAdminUI();
+  slSongTagsMigrate();
 }
 async function onAdminBtnClick() {
   if (isAdmin) { if (await slConfirm('退出管理员登录？')) adminLogout(); return; }
@@ -5693,28 +5745,116 @@ function songLibPickWeekSongs(){
 }
 // ── 返回键栈：打开一层「页面 / 抽屉」就压一条浏览器历史，手机返回键 / 浏览器后退只会退这一层，
 //    不会把整个诗歌库页面退出去。代码里自己关掉时，会把对应的历史记录一并退掉。
-const slNav = { stack: [], ignore: 0 };
-function slNavOpen(id, onBack, guard) {
-  if (slNav.stack.some(x => x.id === id)) return;
-  slNav.stack.push({ id, onBack, guard });
-  try { history.pushState({ slnav: id }, ''); } catch (e) { slDiag(e, 'slNavOpen'); }
+const slNav = { stack: [], ops: [], busy: false, waitDone: null, lastExit: 0, ready: false };
+function slNavSuspended() { try { return !!(typeof ob !== 'undefined' && ob.on); } catch (e) { return false; } }   // 引导演示时不压历史
+// 对浏览器历史的操作（压入 / 后退）排成队列依次执行：history.go 是异步的，如果紧接着又 pushState，顺序会错乱
+function slNavPump() {
+  if (slNav.busy) return;
+  const op = slNav.ops.shift(); if (!op) return;
+  if (op.t === 'push') {
+    try { history.pushState({ slnav: op.id }, ''); } catch (e) { slDiag(e, 'slNav.push'); }
+    slNavPump(); return;
+  }
+  slNav.busy = true;
+  let finished = false;
+  const done = () => { if (finished) return; finished = true; clearTimeout(timer); slNav.waitDone = null; slNav.busy = false; slNavPump(); };
+  const timer = setTimeout(done, 700);   // popstate 迟迟不来也别卡死
+  slNav.waitDone = done;
+  try { history.go(-op.n); } catch (e) { done(); }
 }
+function slNavOpen(id, onBack, guard) {
+  if (slNavSuspended()) return;
+  if (slNav.stack.some(x => x.id === id && !x.dead)) return;
+  slNav.stack.push({ id, onBack, guard });
+  slNav.ops.push({ t: 'push', id }); slNavPump();
+}
+// 某一层被代码关掉了：如果它是最上面一层，把对应的历史记录退掉；不是最上面的就先标记「已失效」，等上面的层退掉后一起清
 function slNavClosed(id) {
-  const i = slNav.stack.findIndex(x => x.id === id);
+  let i = -1;
+  for (let k = slNav.stack.length - 1; k >= 0; k--) if (slNav.stack[k].id === id && !slNav.stack[k].dead) { i = k; break; }
   if (i < 0) return;
-  const n = slNav.stack.length - i;
-  slNav.stack.splice(i);
-  slNav.ignore++;
-  try { history.go(-n); } catch (e) { slNav.ignore--; }
+  if (i < slNav.stack.length - 1) { slNav.stack[i].dead = true; return; }
+  slNav.stack.pop();
+  let n = 1;
+  while (slNav.stack.length && slNav.stack[slNav.stack.length - 1].dead) { slNav.stack.pop(); n++; }
+  slNav.ops.push({ t: 'go', n }); slNavPump();
+}
+// 首页再按返回：第一次只提示，2.5 秒内再按一次才真的离开，免得误触直接退出
+function slNavInit() {
+  if (slNav.ready) return;
+  try {
+    const st = history.state;
+    if (st && st.slhome) { slNav.ready = true; return; }                          // 刷新页面：已经有首页那一层了
+    if (st && st.slnav) { history.replaceState({ slhome: 1 }, ''); slNav.ready = true; return; }   // 在某个弹层里刷新：把当前这条当成首页
+    history.replaceState(Object.assign({}, st || {}, { slbase: 1 }), '');
+    history.pushState({ slhome: 1 }, '');
+    slNav.ready = true;
+  } catch (e) { slDiag(e, 'slNavInit'); }
+}
+function slNavRootBack() {
+  if (!slNav.ready) return;
+  const now = Date.now();
+  if (now - slNav.lastExit < 2500) { slNav.ready = false; try { history.go(-1); } catch (e) { slDiag(e, 'slNavRootBack'); } return; }
+  slNav.lastExit = now;
+  slNav.ops.push({ t: 'push', id: 'home' }); slNavPump();
+  showToast('再按一次返回键，退出诗歌库', 2200);
 }
 window.addEventListener('popstate', async () => {
-  if (slNav.ignore > 0) { slNav.ignore--; return; }
+  if (slNav.waitDone) { slNav.waitDone(); return; }   // 这次是我们自己 history.go 触发的
   const top = slNav.stack[slNav.stack.length - 1];
-  if (!top) return;
-  if (top.guard && !(await top.guard())) { try { history.pushState({ slnav: top.id }, ''); } catch (e) { slDiag(e, 'slNav.guard'); } return; }
+  if (!top) { slNavRootBack(); return; }
+  if (top.guard && !(await top.guard())) { slNav.ops.push({ t: 'push', id: top.id }); slNavPump(); return; }
   slNav.stack.pop();
   try { top.onBack(); } catch (e) { slDiag(e, 'slNav.onBack'); }
+  let n = 0;   // 露出来的如果是已经被代码关掉的层，继续往回退
+  while (slNav.stack.length && slNav.stack[slNav.stack.length - 1].dead) { slNav.stack.pop(); n++; }
+  if (n) { slNav.ops.push({ t: 'go', n }); slNavPump(); }
 });
+// 所有弹层 / 抽屉 / 播放页（class 里有 modal-overlay、now-playing-page，打开时带 open）自动接入返回栈：
+// 手机返回键只会关最上面一层，不会把整个网站退出去。选歌页和大图查看器上面已经单独接好了。
+(function () {
+  const EXCL = new Set(['weekPickOverlay', 'weekPickFilterOverlay']);
+  const isLayer = el => !!(el && el.id && el.classList && !EXCL.has(el.id) && (el.classList.contains('modal-overlay') || el.classList.contains('now-playing-page')));
+  const backOf = el => () => {
+    if (!el.classList.contains('open')) return;
+    if (el.getAttribute('onclick')) el.click();   // 点遮罩本身 = 走它自己的关闭函数
+    else if (el.id === 'nowPlayingOverlay' && typeof closeNowPlaying === 'function') closeNowPlaying();
+    if (el.classList.contains('open')) el.classList.remove('open');
+  };
+  const seen = new WeakMap();
+  const start = () => new MutationObserver(recs => {
+    for (const r of recs) {
+      const el = r.target; if (!isLayer(el)) continue;
+      const on = el.classList.contains('open');
+      if (seen.get(el) === on) continue;
+      seen.set(el, on);
+      if (on) slNavOpen('ov:' + el.id, backOf(el)); else slNavClosed('ov:' + el.id);
+    }
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'], subtree: true });
+  if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+// 标签页（最近使用 / 诗歌本 / 我的收藏）、歌本详情、专属搜索也算一层：返回先回到上一级
+(function () {
+  const _tab = setSongLibTab;
+  setSongLibTab = function (tab) {
+    const r = _tab.apply(this, arguments);
+    if (tab && tab !== 'all') slNavOpen('tab', () => _tab('all')); else slNavClosed('tab');
+    return r;
+  };
+  const _mode = setSongLibSearchMode;
+  setSongLibSearchMode = function (mode) {
+    const r = _mode.apply(this, arguments);
+    if (mode === 'ds') slNavOpen('ds', () => _mode('lib')); else slNavClosed('ds');
+    return r;
+  };
+  const _bo = songLibBookOpen, _bl = songLibBooksShowList;
+  songLibBookOpen = function () {
+    const r = _bo.apply(this, arguments);
+    if (songLibBookCur) slNavOpen('book', () => songLibBookBack());
+    return r;
+  };
+  songLibBooksShowList = function () { slNavClosed('book'); return _bl.apply(this, arguments); };
+})();
 // 大图查看器也接入：看图时按返回只关大图，回到选歌页 / 诗歌库
 (function () {
   const _open = openLightboxWithList, _close = closeLightbox;
@@ -6308,7 +6448,14 @@ const OB_STEPS = [
 
   // ── ① 认识首页 ──
   { part: '认识首页', title: '顶部工具栏', target: '.song-lib-page-top', state: { tab: 'all' },
-    text: '这里是页面标题和几个小图标，<b>右边</b>依次是：<b>管理员登录</b>、<b>？</b>使用引导（随时重看）、<b>离线与备份</b>（云朵图标）、<b>上传诗歌</b>。切到其他标签页时会多出一个<b>放大镜</b>用来搜索；管理员登录后还会多一个<b>齿轮</b>（音乐存储设置）。' },
+    text: '这里是页面标题和几个小图标，<b>右边</b>依次是：<b>管理员登录</b>、<b>？</b>使用引导（随时重看）、<b>离线与备份</b>（云朵图标）、<b>上传诗歌</b>。切到其他标签页时会多出一个<b>放大镜</b>用来搜索；管理员登录后还会多一个<b>齿轮</b>（音乐存储设置）和<b>旗子</b>（歌谱纠错反馈）。最前面的两个图标是<b>长辈模式</b>和<b>字号</b>（下一步细说）。' },
+  { part: '认识首页', title: '长辈模式与字号', target: () => document.getElementById('elderToggleBtn'), state: { tab: 'all', search: '' }, skip: () => !document.getElementById('elderToggleBtn'),
+    text: '给长辈用很方便：<b>Aa 图标</b>一键切换<b>长辈模式</b>——字更大、界面更简洁、只留搜歌和看谱；旁边的<b>字号</b>按钮可在「标准 / 大 / 特大」之间轮流切换。设置会记在这台设备上，点「标准版」就能切回来。<br>把链接后面加上 <b>?elder=1</b> 发给长辈，他们打开就直接是大字版。' },
+  { part: '认识首页', title: '久未使用提醒', target: '#songLibStaleHint', state: { tab: 'all', search: '' }, skip: () => !obVisible(document.getElementById('songLibStaleHint')),
+    text: '首页偶尔会冒出这样一条提醒：有几首歌<b>很久没唱</b>了。点一下就只看这些歌，选歌时想「换换口味」很方便；点右边的 ✕ 可以 7 天内不再提示。' },
+  { part: '认识首页', title: '管理员提示条', target: () => [document.getElementById('songLibImportHint'), document.getElementById('songLibDupHint')].find(obVisible) || null, state: { tab: 'all', search: '' },
+    skip: () => ![document.getElementById('songLibImportHint'), document.getElementById('songLibDupHint')].some(obVisible),
+    text: '管理员登录后，如果有<b>历史排班里唱过、但诗歌库还没收录</b>的歌，会出现「一键导入」条；如果库里有<b>同名歌曲</b>，会出现「合并成一首」条，合并后同一首歌可以切换不同的谱。点一下就能处理。' },
   { part: '认识首页', title: '本周诗歌卡片', target: '#songLibWeekHost', state: { tab: 'all' },
     text: '首页最上面是<b>本周主日的诗歌</b>：一排谱子缩略图，下面是歌名；有排班的话还会显示<b>主领</b>（请假的人会被划掉）。点缩略图<b>放大看谱</b>，点歌名看歌曲详情。<br>搜索或筛选时这张卡片会自动收起。' },
   { part: '认识首页', title: '发谱子 / 分享', target: () => document.querySelector('#songLibWeekHost .song-lib-weekedit.share') || document.getElementById('songLibWeekHost'), state: { tab: 'all' },
@@ -6337,6 +6484,10 @@ const OB_STEPS = [
     text: '这是点谱图后的<b>全屏看谱</b>。<b>双击</b>或<b>双指</b>缩放，放大后<b>拖动</b>查看细节；底部的 ＋ － 也能缩放，「适应屏幕」一键还原。<br>在列表里打开时，<b>左右滑动</b>（电脑用方向键）就能切换上一首、下一首。' },
   { part: '看谱与听歌', title: '看谱模式：顶部按钮', target: '.lightbox-acts', state: { tab: 'all', search: '', lightbox: true }, skip: () => !obImgSong(),
     text: '<b>歌词</b>：在谱子旁边展开完整歌词，对照着看；<b>保存</b>：下载谱子图片；<b>新窗口原图</b>：电脑上用新标签页看原图；<b>关闭</b>：回到列表。<br>主领在谱上留下的<b>标记</b>（圈点、荧光笔、文字等）会直接显示出来，点「保存」时连标记一起存成图片；这里<b>只能看标记，不能涂改</b>。管理员还会在标题旁看到 ✎，可以直接<b>改歌名</b>。' },
+  { part: '看谱与听歌', title: '发现谱子有错？点「纠错」', target: '#lightboxFixBtn', state: { tab: 'all', search: '', lightbox: true }, skip: () => !obImgSong(),
+    text: '看谱时发现音符、歌词、调号不对，或者图片缺页不清楚，点底部的<b>「纠错」</b>就能告诉管理员，<b>不用登录</b>。（专属搜索里的外部谱子不收纠错。）' },
+  { part: '看谱与听歌', title: '提交纠错', target: '#fxOverlay .song-lib-filter-drawer', state: { tab: 'all', search: '', lightbox: true, fix: true }, skip: () => !obImgSong(),
+    text: '先选<b>问题类型</b>（音符 / 歌词 / 调号 / 记号 / 缺页 / 其他），再写一句<b>哪里不对</b>，位置写得越具体越好改，比如「第二段第三行第 5 个音应该是 6」。称呼可以不填。提交后管理员核对再修改歌谱。每台设备每天最多提交 10 条。现在只是演示，不会真的提交。' },
   { part: '看谱与听歌', title: '看谱模式：切换调', target: '#lightboxKeys',
     state: { tab: 'all', search: '', lightbox: true },
     skip: () => { const s = obImgSong(); return !(s && s.keys.filter(k => k.src).length > 1); },
@@ -6345,6 +6496,8 @@ const OB_STEPS = [
     text: '这是<b>歌曲详情</b>。大图点一下可放大看谱；右下角绿色圆形按钮进入<b>「正在播放」页</b>：有进度条、<b>变调</b>（切换不同的调）、<b>节拍器</b>、<b>歌词</b>（有时间轴的会随歌曲逐行高亮）和播放列表。' },
   { part: '看谱与听歌', title: '详情：收藏与分享', target: '.song-lib-detail-title-row', state: { tab: 'all', search: '', detail: true }, skip: () => !songLibrary.length,
     text: '歌名旁边：<b>♡</b> 收藏；<b>分享</b>会生成一张带二维码的<b>分享海报</b>，可保存海报、保存谱图或复制链接；管理员还会看到 <b>✎</b>，可以修改歌名（使用记录会一起更新）。' },
+  { part: '看谱与听歌', title: '详情：来源与主题标签', target: () => { const e = document.getElementById('songLibDetailSource'); return obVisible(e) ? e : document.querySelector('.song-lib-detail-title-row'); }, state: { tab: 'all', search: '', detail: true }, skip: () => !songLibrary.length,
+    text: '标题下面会列出这首歌的<b>乐团、诗歌本</b>和<b>主题标签</b>（如感恩、圣餐、圣诞）。这些标签也能在首页搜索和筛选里用。管理员在这里会看到「<b>编辑</b>」，可以补充乐团、诗歌本和标签。' },
   { part: '看谱与听歌', title: '详情：调 / 谱', target: '#songLibKeyChips', state: { tab: 'all', search: '', detail: true }, skip: () => !songLibrary.length,
     text: '一首歌可以有<b>多个调</b>（比如 C 调、D 调、不同诗歌本的谱）。点一下切换上面的谱图；点「<b>＋ 添加调</b>」可以给这首歌补上新的谱子，同样支持图片链接或本地上传。管理员在调旁边会看到 ✎，可以<b>修改调名</b>（留空表示「默认」）。' },
   { part: '看谱与听歌', title: '详情：下载与歌词', target: '#songLibDownloadImgBtn', state: { tab: 'all', search: '', detail: true }, skip: () => !songLibrary.length,
@@ -6366,7 +6519,7 @@ const OB_STEPS = [
   { part: '分类与筛选', title: '筛选按钮', target: '#songLibFilterBtn', state: { tab: 'all', search: '' },
     text: '回到首页，工具栏上的<b>「筛选」</b>按钮可以打开筛选抽屉。我帮你打开看看 👉' },
   { part: '分类与筛选', title: '排序', target: '#songLibSortBox', state: { tab: 'all', search: '', filter: true },
-    text: '<b>排序</b>有四种：<b>收入时间</b>、<b>拼音首字母</b>、<b>最近使用</b>、<b>使用次数</b>。右边的小按钮可以切换正序 / 倒序。选「使用次数」会变成<b>排行榜</b>，前三名有金银铜奖牌，还能选统计范围是<b>今年</b>还是<b>全部历史</b>。' },
+    text: '<b>排序</b>有四种：<b>收录时间</b>、<b>拼音首字母</b>、<b>最近使用</b>、<b>使用次数</b>。右边的小按钮可以切换正序 / 倒序。选「使用次数」会变成<b>排行榜</b>，前三名有金银铜奖牌，还能选统计范围是<b>今年</b>还是<b>全部历史</b>。' },
   { part: '分类与筛选', title: '本周卡片显示', target: '#songLibWeekPrefBar', state: { tab: 'all', search: '', filter: true },
     text: '不想在首页看到「本周诗歌」卡片？在这里选<b>隐藏</b>就行，随时可以再改回<b>显示</b>。' },
   { part: '分类与筛选', title: '按诗歌本、标签筛选', target: '#songLibFilterBar', state: { tab: 'all', search: '', filter: true },
@@ -6390,7 +6543,18 @@ const OB_STEPS = [
   { part: '管理员', title: '登录窗口', target: '#adminLoginEmail', state: { tab: 'all', search: '', login: true }, skip: () => isAdmin,
     text: '输入管理员的<b>邮箱和密码</b>就能登录，账号和排班表是同一套。主领选歌也需要先登录，没登录时点「我要选歌」会自动弹出这个窗口，登录成功后直接进入选歌。' },
   { part: '管理员', title: '管理员能做什么', target: '#songLibAdminBtn', state: { tab: 'all', search: '' },
-    text: '登录后会多出这些功能：<b>选本周诗歌</b>、<b>修改歌名 / 调名</b>、<b>批量选择</b>歌曲统一设置标签和诗歌本、<b>合并同名歌曲</b>、管理<b>诗歌本和标签</b>、设置<b>动态歌词</b>（LRC 时间轴）、<b>音乐存储设置</b>和选歌时在谱子上<b>标记涂改</b>。' },
+    text: '登录后会多出这些功能：<b>选本周诗歌</b>、<b>修改歌名 / 调名</b>、<b>批量选择</b>歌曲统一设置标签和诗歌本、<b>合并同名歌曲</b>、管理<b>诗歌本和标签</b>、设置<b>动态歌词</b>（LRC 时间轴）、<b>音乐存储设置</b>、选歌时在谱子上<b>标记涂改</b>，以及查看大家提交的歌谱<b>纠错反馈</b>。下面几步挑最常用的演示（只有管理员登录后才会看到）。' },
+
+  { part: '管理员', title: '批量选择', target: '#songLibBatchBtn', state: { tab: 'all', search: '' }, skip: () => !isAdmin,
+    text: '工具栏上的<b>「批量」</b>按钮可以一次改很多首歌：进入后点卡片就是<b>勾选</b>（不会打开详情）。下面我帮你进入批量模式看看 👉' },
+  { part: '管理员', title: '批量操作条', target: '#songLibSelBar', state: { tab: 'all', search: '', batch: 'bar' }, skip: () => !isAdmin || !songLibrary.length,
+    text: '底部出现操作条：显示<b>已选几首</b>，可以<b>全选</b>；「<b>合并</b>」把勾选的几首同名歌合成一首；「<b>设置标签</b>」统一加标签、去标签、改诗歌本。点「取消」退出批量模式。' },
+  { part: '管理员', title: '批量设置标签 / 诗歌本', target: '#songLibBatchOverlay .song-lib-filter-drawer', state: { tab: 'all', search: '', batch: 'drawer' }, skip: () => !isAdmin || !songLibrary.length,
+    text: '<b>添加标签</b>：点选的标签会加到所有已选歌曲上，也能点「＋新标签」现建一个；<b>移除标签</b>：列出已选歌曲里已有的标签，点选后统一去掉；<b>设置诗歌本</b>：留空表示不修改。点「应用」才会生效，并同步到云端。现在只是演示，我不会应用。' },
+  { part: '管理员', title: '歌谱纠错反馈收件箱', target: '#fxInboxBtn', state: { tab: 'all', search: '' }, skip: () => !isAdmin || !document.getElementById('fxInboxBtn'),
+    text: '这个<b>旗子图标</b>是大家提交的歌谱纠错，右上角的小红点表示还有<b>未处理</b>的。点开可以<b>看谱</b>定位到那一页、标为<b>已处理</b>或删除；也可以点「显示已处理」翻旧账。看谱时点「纠错」，还能看到这首歌已有的纠错。' },
+  { part: '管理员', title: '音乐存储设置', target: '#songLibStorageBtn', state: { tab: 'all', search: '' }, skip: () => !isAdmin,
+    text: '<b>齿轮图标</b>用来配置存放 mp3 的 Supabase 存储（项目地址、anon key、bucket 名称，默认 songs）。配好后，给歌曲添加音乐链接时就能<b>直接上传 mp3</b>，不用再另外找地方存。只需要设置一次。' },
 
   // ── ⑦ 主领选歌 ──
   { part: '主领选歌', title: '主领从这里开始', target: '#songLibWeekHost', state: { tab: 'all', search: '' },
@@ -6457,6 +6621,9 @@ function obApply(st) {
   if (!st.ol) q('olOverlay').classList.remove('open');
   if (!st.exp) q('songLibExportOverlay').classList.remove('open');
   if (!st.add) q('songLibAddOverlay').classList.remove('open');
+  if (!st.fix) { const fo = q('fxOverlay'); if (fo) fo.classList.remove('open'); }
+  if (!st.batch && songLibSelMode) songLibBatchExit();
+  if (st.batch !== 'drawer') q('songLibBatchOverlay').classList.remove('open');
   if (!st.login) q('adminLoginOverlay').classList.remove('open');
   if (!st.filter) q('songLibFilterOverlay').classList.remove('open');
   if (!st.ds && songLibSearchMode === 'ds') { q('songLibSearchInput').value = ''; setSongLibSearchMode('lib'); }
@@ -6471,6 +6638,11 @@ function obApply(st) {
       if (inp.value !== want || songLibSearchKeyword !== want) obSetMainSearch(want);
     }
   }
+  if (st.batch && isAdmin) {   // 演示批量模式：进入选择模式，自动勾上第一张卡片
+    if (!songLibSelMode) songLibBatchEnter();
+    if (!songLibSel.size) { const c = OB_FIRST_CARD(); if (c && c.dataset.sid) { songLibSel.add(c.dataset.sid); c.classList.add('sel'); try { songLibBatchUpdateBar(); } catch (e) { slDiag(e, 'obApply'); } } }
+    if (st.batch === 'drawer' && !q('songLibBatchOverlay').classList.contains('open')) songLibBatchOpen();
+  }
   if (st.filter && !q('songLibFilterOverlay').classList.contains('open')) openSongLibFilter();
   if (window.SG) SG.obApply(st.sg || null);
   if (st.ol && window.OL && !q('olOverlay').classList.contains('open')) OL.open();
@@ -6484,6 +6656,7 @@ function obApply(st) {
     const s = obImgSong(), k = s && s.keys.find(x => x.src);
     if (s && k) openLightboxWithList([{ title: s.title, src: k.src, songId: s.id }], 0);
   }
+  if (st.fix && lbv.open && window.FX && !q('fxOverlay')?.classList.contains('open')) FX.open();
   if (st.pick) {
     if (!q('weekPickOverlay').classList.contains('open')) openWeekPick();
     q('weekPickSearch').value = st.pickSearch || '';
@@ -6594,7 +6767,7 @@ function obShow(i) {
 function startOnboarding(manual) {
   if (ob.on) return;
   if (songLibSkelOn) { setTimeout(() => startOnboarding(manual), 400); return; }
-  ['adminLoginOverlay', 'songLibAddOverlay', 'songLibStorageOverlay', 'songLibMergeOverlay', 'songLibBatchOverlay', 'scoreShareOverlay', 'weekShareOverlay', 'olOverlay', 'songLibExportOverlay', 'sgBoxOverlay', 'sgThemeOverlay'].forEach(id => document.getElementById(id)?.classList.remove('open'));
+  ['adminLoginOverlay', 'songLibAddOverlay', 'songLibStorageOverlay', 'songLibMergeOverlay', 'songLibBatchOverlay', 'scoreShareOverlay', 'weekShareOverlay', 'olOverlay', 'songLibExportOverlay', 'sgBoxOverlay', 'sgThemeOverlay', 'fxOverlay', 'fxInboxOverlay'].forEach(id => document.getElementById(id)?.classList.remove('open'));
   if (typeof songLibSelMode !== 'undefined' && songLibSelMode) songLibBatchExit();
   ob.steps = OB_STEPS.filter(s => !s.skip || !s.skip());
   ob.on = true;
@@ -6633,8 +6806,120 @@ function obAutoStart() {
   }, 300);
 }
 
+// ── 回到顶部悬浮按钮 + 下拉刷新（首页主滚动区）──
+async function slRefreshData() {
+  if (!initSupabaseClient()) { showToast(navigator.onLine === false ? '📴 当前离线，无法刷新' : '⚠️ 云端未连接，无法刷新'); return false; }
+  try {
+    await loadRemoteSongState();
+    songLibWeekDataState = 'ok';
+    renderSongLibFilterBar(); renderSongLibraryGrid(); updateSongLibImportHint();
+    try { songLibRenderWeekCard(); } catch (e) { slDiag(e, 'slRefreshData'); }
+    if (songLibTab === 'books' && !songLibBookCur) { try { await songLibBooksShowList(true); } catch (e) { slDiag(e, 'slRefreshData.books'); } }
+    try { await syncAuthState(); } catch (e) { slDiag(e, 'slRefreshData.auth'); }
+    try { if (navigator.serviceWorker) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); } catch (e) { slDiag(e, 'slRefreshData.sw'); }   // 顺便检查页面有没有新版本
+    showToast('✅ 已刷新');
+    return true;
+  } catch (e) {
+    slDiag(e, 'slRefreshData');
+    showToast(navigator.onLine === false ? '📴 当前离线，无法刷新' : '⚠️ 刷新失败，请稍后再试');
+    return false;
+  }
+}
+function slScrollUXInit() {
+  const main = document.querySelector('.song-lib-main'), page = document.getElementById('songLibraryOverlay');
+  if (!main || !page || main._slUx) return;
+  main._slUx = true;
+
+  // 回到顶部：往下滚一段距离后出现，点一下平滑回到最上面
+  const top = document.createElement('button');
+  top.type = 'button'; top.className = 'sl-totop'; top.setAttribute('aria-label', '回到顶部'); top.title = '回到顶部';
+  top.innerHTML = '<i class="ti ti-arrow-up"></i>';
+  page.appendChild(top);
+  const placeTop = () => {
+    let b = 20;
+    const bar = document.getElementById('floatingAudioBar');
+    if (typeof floatingAudioVisible !== 'undefined' && floatingAudioVisible && bar) b += (bar.offsetHeight || 64) + 12;   // 躲开底部迷你播放条
+    if (page.classList.contains('sel-mode')) b += 64;                                                                   // 躲开批量选择操作条
+    top.style.bottom = `calc(${b}px + env(safe-area-inset-bottom))`;
+  };
+  let raf = 0;
+  const onScroll = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const show = main.scrollTop > Math.max(400, main.clientHeight * 0.7);
+      if (show) placeTop();
+      top.classList.toggle('show', show);
+    });
+  };
+  main.addEventListener('scroll', onScroll, { passive: true });
+  setInterval(() => { if (top.classList.contains('show')) placeTop(); }, 800);
+  top.addEventListener('click', () => {
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    main.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+  });
+
+  // 下拉刷新：在最顶部继续往下拉，松手后重新读取云端数据（不整页重载）
+  const host = main.parentElement;
+  const ptr = document.createElement('div');
+  ptr.className = 'sl-ptr'; ptr.setAttribute('aria-hidden', 'true');
+  ptr.innerHTML = '<i class="ti ti-arrow-down"></i><span>下拉刷新</span>';
+  host.appendChild(ptr);
+  const icon = ptr.querySelector('i'), label = ptr.querySelector('span');
+  const TH = 60, MAX = 104;
+  let y0 = 0, x0 = 0, pull = 0, tracking = false, locked = false, busy = false;
+  const blocked = () => busy || page.classList.contains('ds-mode') || page.classList.contains('sel-mode') || slNav.stack.some(x => !x.dead && x.id.indexOf('ov:') === 0 || x.id === 'lightbox' || x.id === 'weekpick') || slNavSuspended();
+  const paint = (px, anim) => {
+    ptr.classList.toggle('anim', !!anim);
+    ptr.style.transform = `translate(-50%, ${px - 48}px)`;
+    ptr.style.opacity = String(Math.min(1, px / 36));
+    const ready = px >= TH;
+    ptr.classList.toggle('ready', ready);
+    if (!busy) { label.textContent = ready ? '松开刷新' : '下拉刷新'; icon.className = 'ti ti-arrow-down'; }
+  };
+  main.addEventListener('touchstart', e => {
+    if (blocked() || e.touches.length !== 1 || main.scrollTop > 0) { tracking = false; return; }
+    tracking = true; locked = false; pull = 0;
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX;
+  }, { passive: true });
+  main.addEventListener('touchmove', e => {
+    if (!tracking) return;
+    const t = e.touches[0], dy = t.clientY - y0, dx = t.clientX - x0;
+    if (!locked) {
+      if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+      if (dy <= 0 || Math.abs(dx) > Math.abs(dy) || main.scrollTop > 0) { tracking = false; return; }   // 往上滑 / 横着滑 / 不在顶部：不是下拉
+      locked = true;
+    }
+    if (main.scrollTop > 0) { tracking = false; paint(0, true); return; }
+    pull = Math.min(MAX, dy * 0.55);
+    if (e.cancelable) e.preventDefault();
+    paint(pull, false);
+  }, { passive: false });
+  const release = async () => {
+    if (!tracking) return;
+    tracking = false;
+    if (!locked) return;
+    locked = false;
+    if (pull >= TH && !busy) {
+      busy = true;
+      ptr.classList.add('busy'); icon.className = 'ti ti-loader-2'; label.textContent = '刷新中…';
+      paint(48, true);
+      const t0 = Date.now();
+      await slRefreshData();
+      const wait = 500 - (Date.now() - t0); if (wait > 0) await new Promise(r => setTimeout(r, wait));   // 至少转半秒，避免一闪而过
+      busy = false;
+      ptr.classList.remove('busy');
+    }
+    pull = 0; paint(0, true);
+  };
+  main.addEventListener('touchend', release, { passive: true });
+  main.addEventListener('touchcancel', release, { passive: true });
+}
+
 // ── 启动 ──
 async function bootstrapSongLibPage() {
+  slNavInit();
+  slScrollUXInit();
   loadSongLibrary();
   loadSongLibFavorites();
   loadSongLibCategories();
@@ -6646,7 +6931,7 @@ async function bootstrapSongLibPage() {
   songLibWeekDataState = 'pending';             // 云端数据回来前，本周卡片先显示骨架，免得误报「暂未选歌」
   openSongLibrary();                      // 先显示骨架，再用本机缓存 / 云端数据画出页面
   if (initSupabaseClient()) {
-    try { supabaseClient.auth.onAuthStateChange((_e, session) => { const now = !!session; if (now !== isAdmin) { isAdmin = now; updateAdminUI(); } }); } catch (e) { slDiag(e, 'bootstrapSongLibPage'); }
+    try { supabaseClient.auth.onAuthStateChange((_e, session) => { const now = !!session; if (now !== isAdmin) { isAdmin = now; updateAdminUI(); if (now) slSongTagsMigrate(); } }); } catch (e) { slDiag(e, 'bootstrapSongLibPage'); }
     try {
       await loadRemoteSongState();
       songLibWeekDataState = 'ok';

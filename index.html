@@ -3,11 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>诗歌库</title>
+<title>巴西华人基督教会诗歌库</title>
 <meta name="description" id="metaDescTag" content="教会诗歌库：歌谱、歌词、在线收听与专属搜索">
 <meta property="og:title" id="metaOgTitleTag" content="诗歌库">
 <meta property="og:description" id="metaOgDescTag" content="教会诗歌库：歌谱、歌词、在线收听与专属搜索">
-<meta property="og:image" id="metaOgImageTag" content="">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="诗歌库">
+<meta property="og:image" id="metaOgImageTag" content="icons/share-cover.jpg">
+<meta property="og:image:width" content="600">
+<meta property="og:image:height" content="600">
+<meta name="twitter:card" content="summary">
+<meta itemprop="name" content="诗歌库">
+<meta itemprop="image" id="metaItemImageTag" content="icons/share-cover.jpg">
+<link rel="image_src" id="linkImageSrcTag" href="icons/share-cover.jpg">
+<script>/* 微信 / 社交软件要求分享封面是完整网址：按当前页面地址换成绝对路径 */try{var u=new URL("icons/share-cover.jpg",location.href).href;["metaOgImageTag","metaItemImageTag"].forEach(function(i){var e=document.getElementById(i);if(e)e.setAttribute("content",u)});var l=document.getElementById("linkImageSrcTag");if(l)l.setAttribute("href",u)}catch(e){}</script>
 <meta name="theme-color" content="#1D9E75">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,16 +28,17 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261205">
+<link rel="stylesheet" href="styles.css?v=20261209">
 <link rel="stylesheet" href="elder.css?v=20261201">
 <script>try{var q=new URLSearchParams(location.search).get("elder"),v=(q==="1"||q==="0")?q:localStorage.getItem("songlibElder");if(v==="1"){var h=document.documentElement;h.classList.add("elder");var n=+localStorage.getItem("songlibElderScale")||0;h.style.setProperty("--es",[1,1.15,1.3][n]||1)}}catch(e){}</script>
 </head>
 <body>
 <div class="app">
+<div style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><img src="icons/share-cover.jpg" width="300" height="300" alt="诗歌库"></div><!-- 微信转发时会从页面里挑第一张大图当封面 -->
 
 <div class="song-lib-page open tab-home" id="songLibraryOverlay">
   <div class="song-lib-page-top">
-    <div class="song-lib-page-title">诗歌库</div>
+    <div class="song-lib-page-title">诗歌库2.0</div>
     <div class="song-lib-page-top-right">
       <button class="song-lib-page-search-btn" id="songLibSearchToggleBtn" onclick="toggleSongLibSearch()" title="搜索" aria-label="搜索"><i class="ti ti-search"></i></button>
       <button class="song-lib-page-search-btn" id="songLibStorageBtn" style="display:none" onclick="openSongLibStorageSettings()" title="音乐存储设置" aria-label="音乐存储设置"><i class="ti ti-settings"></i></button>
@@ -736,10 +746,10 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261205"></script>
+<script defer src="app.js?v=20261210"></script>
 <script defer src="offline.js?v=20261129"></script>
 <script defer src="export-pdf.js?v=20261129"></script>
-<script defer src="suggest.js?v=20261201"></script>
+<script defer src="suggest.js?v=20261206"></script>
 <script defer src="fix.js?v=20261205"></script>
 <script defer src="elder.js?v=20261201"></script>
 </body>

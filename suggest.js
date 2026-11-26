@@ -188,6 +188,8 @@
   function hideCard() { setCardPref('hide'); toast('已隐藏。想再显示，到「筛选 → 会众卡片」里打开', 3500); }
   function cardVisible() {
     try {
+      const pg = $('songLibraryOverlay');
+      if (pg && (pg.classList.contains('ds-mode') || pg.classList.contains('tab-books'))) return false;   // 专属搜索 / 诗歌本页面不显示
       return songLibTab === 'all' && songLibSearchMode === 'lib' && !songLibSearchKeyword && !songLibSongbookFilter
         && !songLibCategoryFilter && !songLibTagFilter.length && !songLibUsageFilter && songLibWeekDataState !== 'fail' && !songLibSkelOn;
     } catch (e) { return false; }
@@ -495,6 +497,8 @@
     wrap('renderSongLibFilterBar', renderPrefBar);   // 筛选抽屉里的「会众卡片」显示 / 隐藏
     wrap('updateAdminUI', refreshAll);           // 登录 / 退出管理员后刷新按钮
     wrap('openWeekPick', () => { load(true).then(renderPickBox); });
+    wrap('setSongLibTab', renderCard);                 // 切标签时马上收起 / 恢复首页卡片
+    wrap('setSongLibSearchMode', renderCard);          // 切到专属搜索时马上收起
   }
   function init() {
     build(); patch(); renderPrefBar();
