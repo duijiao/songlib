@@ -172,3 +172,9 @@ html.elder .song-lib-plbadge { font-size: calc(15px * var(--es, 1)); padding: 4p
 html.elder .pl-btn.pl-play { width: 58px; height: 58px; background: var(--primary); color: #fff; font-size: 30px; }
 html.elder .pl-btn.pl-play:active { background: var(--primary-dark); }
 html.elder .pl-row.playing .pl-btn.pl-play { background: #fff; color: var(--primary); border: 2px solid var(--primary); }
+
+/* 长辈模式 · 手机底部导航：字号放大，保留图标 */
+@media (max-width: 640px) {
+  html.elder .song-lib-tab { font-size: calc(15px * min(var(--es, 1), 1.1)); padding: 8px 2px; border-bottom-width: 0; }
+  html.elder .song-lib-tab .sl-tab-ico { font-size: 28px; }
+}

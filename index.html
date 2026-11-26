@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261214">
-<link rel="stylesheet" href="elder.css?v=20261214">
+<link rel="stylesheet" href="styles.css?v=20261234">
+<link rel="stylesheet" href="elder.css?v=20261218">
 <script>try{var q=new URLSearchParams(location.search).get("elder"),v=(q==="1"||q==="0")?q:localStorage.getItem("songlibElder");if(v==="1"){var h=document.documentElement;h.classList.add("elder");var n=+localStorage.getItem("songlibElderScale")||0;h.style.setProperty("--es",[1,1.15,1.3][n]||1)}}catch(e){}</script>
 </head>
 <body>
@@ -41,11 +41,22 @@
     <div class="song-lib-page-title">诗歌库2.0</div>
     <div class="song-lib-page-top-right">
       <button class="song-lib-page-search-btn" id="songLibSearchToggleBtn" onclick="toggleSongLibSearch()" title="搜索" aria-label="搜索"><i class="ti ti-search"></i></button>
-      <button class="song-lib-page-search-btn" id="songLibStorageBtn" style="display:none" onclick="openSongLibStorageSettings()" title="音乐存储设置" aria-label="音乐存储设置"><i class="ti ti-settings"></i></button>
-      <button class="song-lib-page-search-btn" id="songLibAdminBtn" onclick="onAdminBtnClick()" title="管理员登录" aria-label="管理员登录"><i class="ti ti-user-shield"></i></button>
-      <button class="song-lib-page-search-btn" id="obHelpBtn" onclick="startOnboarding(true)" title="诗歌库小助手（使用引导）" aria-label="使用引导"><i class="ti ti-help-circle"></i></button>
-      <button class="song-lib-page-search-btn" id="olOpenBtn" onclick="OL.open()" title="离线与备份" aria-label="离线与备份"><i class="ti ti-cloud-download"></i></button>
-      <button class="song-lib-page-search-btn" onclick="openSongLibAdd()" title="上传诗歌" aria-label="上传诗歌"><i class="ti ti-upload"></i></button>
+      <!-- 顶栏只留「搜索」和「更多」；其余按钮（保留原 id / onclick）都收进「更多」菜单里 -->
+      <div class="sl-more-wrap" id="slMoreWrap">
+        <button type="button" class="song-lib-page-search-btn sl-more-btn" id="slMoreBtn" onclick="slMoreToggle(event)" title="更多" aria-label="更多" aria-haspopup="menu" aria-expanded="false"><i class="ti ti-dots"></i><span class="sl-more-dot" id="slMoreDot" hidden></span></button>
+        <div class="sl-more-menu" id="slMoreMenu" role="menu">
+          <div id="slMoreTodo" hidden></div>
+          <button class="song-lib-page-search-btn sl-mi" id="olOpenBtn" onclick="OL.open()" title="离线与备份" aria-label="离线与备份"><i class="ti ti-cloud-download"></i><span class="sl-mi-l">离线与备份</span></button>
+          <button class="song-lib-page-search-btn sl-mi" id="obHelpBtn" onclick="startOnboarding(true)" title="诗歌库小助手（使用引导）" aria-label="使用引导"><i class="ti ti-help-circle"></i><span class="sl-mi-l">使用引导</span></button>
+          <button type="button" class="sl-mi" id="slMoreElder" onclick="slMoreProxy('elderToggleBtn')" hidden><i class="ti ti-text-size"></i><span class="sl-mi-l">长辈模式<small>大字、界面更简洁</small></span></button>
+          <button type="button" class="sl-mi" id="slMoreFont" onclick="slMoreProxy('elderFontBtn')" hidden><i class="ti ti-typography"></i><span class="sl-mi-l">字号<small>标准 / 大 / 特大，轮流切换</small></span></button>
+          <button class="song-lib-page-search-btn sl-mi" onclick="openSongLibAdd()" title="上传诗歌" aria-label="上传诗歌"><i class="ti ti-upload"></i><span class="sl-mi-l">上传诗歌</span></button>
+          <button class="song-lib-page-search-btn sl-mi" id="suReviewBtn" style="display:none" onclick="SU.open()" title="上传审核" aria-label="上传审核"><i class="ti ti-inbox"></i><span class="sl-mi-l">上传审核</span></button>
+          <div class="sl-more-sep"></div>
+          <button class="song-lib-page-search-btn sl-mi" id="songLibAdminBtn" onclick="onAdminBtnClick()" title="管理员登录" aria-label="管理员登录"><i class="ti ti-user-shield"></i><span class="sl-mi-l">管理员登录</span></button>
+          <button class="song-lib-page-search-btn sl-mi" id="songLibStorageBtn" style="display:none" onclick="openSongLibStorageSettings()" title="音乐存储设置" aria-label="音乐存储设置"><i class="ti ti-settings"></i><span class="sl-mi-l">音乐存储设置</span></button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="song-lib-tabs" id="songLibTabs"></div>
@@ -83,6 +94,7 @@
       <div id="songLibCongHost"></div>
       <div class="song-lib-toolbar" id="songLibToolbar">
         <div class="song-lib-count" id="songLibCount"></div>
+        <button class="song-lib-filter-btn" id="songLibRecentBtn" type="button" onclick="setSongLibTab('recent')" aria-label="最近使用"><i class="ti ti-history"></i><span>最近</span></button>
         <button class="song-lib-filter-btn" id="songLibFilterBtn" onclick="openSongLibFilter()"><i class="ti ti-adjustments-horizontal"></i><span id="songLibFilterBtnLabel">筛选</span></button>
         <button class="song-lib-filter-btn" id="songLibBatchBtn" hidden onclick="songLibBatchToggle()"><i class="ti ti-checkbox"></i><span>批量</span></button>
         <div class="song-lib-view-switch" id="songLibViewSwitch">
@@ -93,7 +105,9 @@
       <div class="song-lib-grid" id="songLibGrid"></div>
       <!-- 专属搜索：来源、歌本、状态、结果列表 -->
       <div class="song-lib-ds" id="songLibDs">
-        <div class="song-lib-ds-sources" id="songLibDsSources"></div>
+        <div class="song-lib-ds-srcrow" id="songLibDsSrcRow">
+          <div class="song-lib-ds-sources" id="songLibDsSources"></div>
+        </div>
         <div class="song-lib-ds-books" id="songLibDsBooks"></div>
         <div class="song-lib-ds-status" id="songLibDsStatus"></div>
         <div class="song-lib-ds-list" id="songLibDsList"></div>
@@ -402,7 +416,7 @@
     <button class="modal-close-btn" onclick="closeSongLibAdd()" aria-label="关闭"><i class="ti ti-x"></i></button>
     <div class="picker-handle"></div>
     <div class="upload-modal-title">上传新歌到歌单库</div>
-    <div class="upload-modal-sub">任何人都可以上传，提交后立即生效</div>
+    <div class="upload-modal-sub" id="songLibAddSub">提交后需管理员审核，通过后才会收进诗歌库</div>
     <div class="add-song-area">
       <div class="add-song-area-title">诗歌信息</div>
       <input class="add-song-name-input" id="songLibAddName" placeholder="诗歌名称（必填）" oninput="onSongLibAddNameInput()">
@@ -429,7 +443,7 @@
     <div class="leave-form-error" id="songLibAddError">请输入诗歌名称</div>
     <div class="drawer-actions">
       <button class="btn-cancel" onclick="closeSongLibAdd()">取消</button>
-      <button class="btn-save" id="songLibAddSubmitBtn" onclick="submitSongLibAdd()">上传</button>
+      <button class="btn-save" id="songLibAddSubmitBtn" onclick="submitSongLibAdd()">提交审核</button>
     </div>
   </div>
 </div>
@@ -732,19 +746,26 @@
 </div>
 
 <!-- 管理员登录（和排班表同一个 Supabase 账号） -->
-<div class="modal-overlay" id="adminLoginOverlay" onclick="closeAdminLogin(event)">
-  <div class="upload-modal modal-has-close-btn" onclick="event.stopPropagation()" style="max-width:340px">
-    <button class="modal-close-btn" onclick="closeAdminLogin()" aria-label="关闭"><i class="ti ti-x"></i></button>
-    <div class="picker-handle"></div>
-    <div class="upload-modal-title">管理员登录</div>
-    <div class="upload-modal-sub">登录后可编辑诗歌、管理分类/诗歌本、设置动态歌词</div>
-    <input class="add-song-name-input" id="adminLoginEmail" type="email" placeholder="管理员邮箱" autocomplete="username" style="margin-top:10px">
-    <input class="add-song-name-input" id="adminLoginPass" type="password" placeholder="密码" autocomplete="current-password" style="margin-top:8px" onkeydown="if(event.key==='Enter')doAdminLogin()">
-    <div class="leave-form-error" id="adminLoginError">登录失败：账号或密码不对</div>
-    <div class="drawer-actions">
-      <button class="btn-cancel" onclick="closeAdminLogin()">取消</button>
-      <button class="btn-save" id="adminLoginSubmit" onclick="doAdminLogin()">登录</button>
-    </div>
+<div class="modal-overlay admin-login-overlay" id="adminLoginOverlay" onclick="closeAdminLogin(event)">
+  <div class="admin-login" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle" onclick="event.stopPropagation()">
+    <button type="button" class="admin-login-close" onclick="closeAdminLogin()" aria-label="关闭"><i class="ti ti-x"></i></button>
+    <div class="admin-login-handle"></div>
+    <div class="admin-login-icon"><i class="ti ti-user-shield"></i></div>
+    <div class="admin-login-title" id="adminLoginTitle">管理员登录</div>
+    <div class="admin-login-sub">登录后可编辑诗歌、管理分类 / 诗歌本、设置动态歌词</div>
+    <form class="admin-login-form" onsubmit="event.preventDefault();doAdminLogin()" novalidate>
+      <label class="admin-login-field">
+        <i class="ti ti-mail"></i>
+        <input id="adminLoginEmail" type="email" placeholder="管理员邮箱" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false">
+      </label>
+      <label class="admin-login-field">
+        <i class="ti ti-lock"></i>
+        <input id="adminLoginPass" type="password" placeholder="密码" autocomplete="current-password">
+        <button type="button" class="admin-login-eye" onclick="adminLoginTogglePass(this)" aria-label="显示密码" tabindex="-1"><i class="ti ti-eye"></i></button>
+      </label>
+      <div class="admin-login-error" id="adminLoginError" role="alert">登录失败：账号或密码不对</div>
+      <button type="submit" class="admin-login-submit" id="adminLoginSubmit">登录</button>
+    </form>
   </div>
 </div>
 
@@ -770,11 +791,13 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261214"></script>
+<script defer src="app.js?v=20261232"></script>
 <script defer src="offline.js?v=20261129"></script>
 <script defer src="export-pdf.js?v=20261129"></script>
-<script defer src="suggest.js?v=20261206"></script>
-<script defer src="fix.js?v=20261205"></script>
+<script defer src="suggest.js?v=20261228"></script>
+<script defer src="review.js?v=20261229"></script>
+<script defer src="fix.js?v=20261226"></script>
 <script defer src="elder.js?v=20261211"></script>
+<script defer src="homeui.js?v=20261228"></script>
 </body>
 </html>

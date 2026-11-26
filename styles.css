@@ -1804,3 +1804,202 @@ body:has(.floating-audio-bar.show) .song-lib-grid.view-playlist { padding-bottom
 }
 /* 标记模式：左边的关闭键隐藏后，歌名靠左对齐，别和右侧按钮挤在一起 */
 .lightbox.mk-on .lightbox-title { text-align: left; }
+
+
+/* ── 管理员登录弹窗：手机 = 通栏底部抽屉（左右不留白）；≥600px = 居中卡片 ── */
+.admin-login-overlay { align-items: flex-end; justify-content: stretch; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.admin-login {
+  position: relative; width: 100%; max-width: none; background: #fff;
+  border-radius: 22px 22px 0 0; padding: 10px 22px calc(24px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(28,26,20,0.14); animation: slideUp 0.25s ease;
+  max-height: 92vh; overflow-y: auto; text-align: center;
+}
+.admin-login-handle { width: 38px; height: 4px; border-radius: 2px; background: var(--bg-subtle-2); margin: 0 auto 14px; }
+.admin-login-close {
+  position: absolute; top: 16px; right: 16px; width: 30px; height: 30px; border: none; border-radius: 50%;
+  background: var(--bg-subtle); color: var(--text-3); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background .15s, transform .1s;
+}
+.admin-login-close:hover { background: var(--bg-subtle-2); color: var(--text-2); }
+.admin-login-close:active { transform: scale(.92); }
+.admin-login-icon {
+  width: 52px; height: 52px; margin: 0 auto 12px; border-radius: 16px; font-size: 26px;
+  background: var(--primary-light); color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+}
+.admin-login-title { font-size: 18px; font-weight: 700; color: var(--text-1); }
+.admin-login-sub { font-size: 12.5px; line-height: 1.55; color: var(--text-3); margin: 6px auto 20px; max-width: 300px; text-wrap: balance; }
+.admin-login-form { display: flex; flex-direction: column; gap: 12px; text-align: left; }
+.admin-login-field {
+  display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 14px;
+  background: var(--bg-subtle); border: 1.5px solid transparent; border-radius: 14px;
+  transition: border-color .15s, background .15s, box-shadow .15s; cursor: text;
+}
+.admin-login-field > i { font-size: 18px; color: var(--text-4); flex: none; transition: color .15s; }
+.admin-login-field:focus-within { background: #fff; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(29,158,117,.12); }
+.admin-login-field:focus-within > i { color: var(--primary); }
+.admin-login-field input {
+  flex: 1; min-width: 0; height: 100%; border: none; outline: none; background: transparent;
+  font-size: 16px; /* ≥16px 避免 iOS 聚焦时自动放大页面 */ font-family: inherit; color: var(--text-1);
+}
+.admin-login-field input::placeholder { color: var(--text-4); }
+.admin-login-eye { flex: none; border: none; background: none; color: var(--text-3); font-size: 18px; cursor: pointer; padding: 6px; margin-right: -6px; display: flex; }
+.admin-login-eye:hover { color: var(--text-2); }
+.admin-login-error {
+  display: none; font-size: 12.5px; color: #d4574f; background: #fdeeed; border-radius: 10px; padding: 8px 12px;
+}
+.admin-login-error.show { display: block; }
+.admin-login-submit {
+  height: 48px; border: none; border-radius: 14px; background: var(--primary); color: #fff; margin-top: 2px;
+  font-size: 15px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .15s, transform .1s, opacity .15s;
+}
+.admin-login-submit:hover { background: var(--primary-dark); }
+.admin-login-submit:active { transform: scale(.985); }
+.admin-login-submit:disabled { opacity: .6; cursor: default; }
+@media (min-width: 600px) {
+  .admin-login-overlay { align-items: center; justify-content: center; }
+  .admin-login {
+    width: 380px; border-radius: 22px; padding: 30px 28px 28px; box-shadow: var(--shadow-lg);
+    animation: adminLoginPop .2s ease;
+  }
+  .admin-login-handle { display: none; }
+}
+@keyframes adminLoginPop { from { transform: scale(.96) translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ── 所有底部抽屉统一规则 ──
+   <600px：通栏贴底，左右不留白（修掉 480–599px 宽屏手机/横屏时两侧露出遮罩的问题）
+   ≥600px：居中卡片，不再是屏幕中间一条窄抽屉 */
+@media (max-width: 599.98px) {
+  .upload-modal, .song-lib-filter-drawer, .week-share-drawer,
+  .song-lib-detail-modal, .music-player-modal, .pl-sheet { max-width: none !important; }
+}
+@media (min-width: 600px) {
+  .modal-overlay { align-items: center; }
+  .upload-modal, .song-lib-filter-drawer, .week-share-drawer,
+  .song-lib-detail-modal, .music-player-modal, .pl-sheet {
+    border-radius: 22px; box-shadow: var(--shadow-lg); animation: adminLoginPop .2s ease;
+  }
+  .upload-modal, .song-lib-filter-drawer, .song-lib-detail-modal, .music-player-modal { padding-bottom: 24px; }
+  .pl-sheet { max-width: 380px; padding-bottom: 14px; }
+  .modal-overlay .picker-handle { display: none; }
+  .modal-overlay .upload-modal, .modal-overlay .song-lib-filter-drawer,
+  .modal-overlay .song-lib-detail-modal, .modal-overlay .music-player-modal,
+  .modal-overlay .week-share-drawer { max-height: 90vh; }
+}
+
+/* 专属搜索：来源筛选条 + 视图切换同一行；此时工具栏已空，整行隐藏 */
+.song-lib-ds-srcrow { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+.song-lib-ds-srcrow .song-lib-ds-sources { flex: 1; min-width: 0; margin-bottom: 0; }
+.song-lib-ds-srcrow .song-lib-view-switch { margin-left: auto; align-self: center; }
+.song-lib-page.ds-mode .song-lib-toolbar { display: none; }
+
+/* ═══════════════════════════════════════════════════════════
+ * 首页精简（v29）：顶栏「更多」菜单 / 提示条收进红点 / 搜索范围按需出现 / 主题+点歌箱贴在本周卡片下
+ * ═══════════════════════════════════════════════════════════ */
+
+/* 1) 三条提示条不再占首屏：改由「更多」菜单里的「待处理」+ 红点提示（元素还在，原来的逻辑照常更新它们） */
+.song-lib-import-hint, .song-lib-dup-hint, .song-lib-stale-hint { display: none !important; }
+
+/* 2) 顶栏：只留 搜索 + 更多；长辈模式 / 字号两个按钮只在长辈模式下显示在顶栏（标准版从菜单里进） */
+.song-lib-page-top { z-index: 30; }
+html:not(.elder) #elderToggleBtn, html:not(.elder) #elderFontBtn { display: none !important; }
+html.elder .sl-more-wrap { display: none !important; }
+.sl-more-wrap { position: relative; flex-shrink: 0; }
+.sl-more-btn { position: relative; }
+.sl-more-dot { position: absolute; top: 5px; right: 5px; width: 10px; height: 10px; box-sizing: border-box; border-radius: 50%; background: #e53935; border: 2px solid #fff; }
+.sl-more-dot[hidden] { display: none; }
+.sl-more-menu {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 80;
+  width: max-content; min-width: 224px; max-width: min(300px, calc(100vw - 24px));
+  max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px); overflow-y: auto; overscroll-behavior: contain;
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 14px; box-shadow: var(--shadow-lg); padding: 6px;
+}
+.sl-more-menu.open { display: block; animation: slMoreIn .14s ease; }
+@keyframes slMoreIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.sl-more-menu [hidden] { display: none !important; }
+.sl-more-menu .sl-mi {
+  display: flex; align-items: center; gap: 12px; width: 100%; height: auto; min-height: 46px; padding: 8px 12px;
+  border: none; border-radius: 10px; background: none; color: var(--text-1); font-family: inherit;
+  font-size: 14.5px; font-weight: 500; text-align: left; cursor: pointer; position: relative;
+}
+.sl-more-menu .sl-mi:hover, .sl-more-menu .sl-mi:active { background: var(--bg-subtle); }
+.sl-more-menu .sl-mi > i { font-size: 20px; color: var(--text-2); flex: none; }
+.sl-more-menu .sl-mi.active, .sl-more-menu .song-lib-page-top-right .sl-mi.active { color: var(--primary); background: var(--primary-light); }
+.sl-more-menu .sl-mi.active > i { color: var(--primary); }
+.sl-mi-l { flex: 1; min-width: 0; }
+.sl-mi-l small { display: block; margin-top: 1px; font-size: 11.5px; font-weight: 400; color: var(--text-3); line-height: 1.4; }
+.sl-more-sec { padding: 8px 12px 4px; font-size: 11.5px; font-weight: 600; color: var(--text-3); }
+.sl-more-sep { height: 1px; margin: 6px 4px; background: var(--border-soft); }
+.sl-more-menu .fx-dot { position: static; margin-left: auto; flex: none; }
+.sl-more-menu .sl-mi.todo > i { color: var(--primary); }
+.sl-mi-row { display: flex; align-items: center; }
+.sl-mi-row .sl-mi { flex: 1; min-width: 0; }
+.sl-mi-x { flex: none; width: 34px; height: 34px; margin-left: 2px; border: none; border-radius: 50%; background: none; color: var(--text-3); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.sl-mi-x:hover, .sl-mi-x:active { background: var(--bg-subtle); }
+
+/* 3) 「诗歌库 / 专属搜索」切换：平时收起；点搜索框、已有关键词、或处于专属搜索时才出现 */
+.song-lib-page.tab-home:not(.ds-mode):not(.scope-show) .song-lib-ds-switch { display: none; }
+
+/* 4) 本周主题 + 点歌建议箱：压成一行两格，并贴在「本周诗歌」卡片下面，看起来是同一块 */
+.sg-card:not(.sg-hint) { display: flex; align-items: stretch; margin: 8px 0 4px; border-radius: 14px; --sg-pt: 0px; }
+.sg-card:not(.sg-hint) .sg-row { flex: 1 1 0; min-width: 0; padding: 9px 12px; gap: 8px; }
+.sg-card:not(.sg-hint) .sg-row + .sg-row { border-top: 0; border-left: 1px solid var(--border-soft); }
+.sg-card:not(.sg-hint) .sg-row > i:first-child { font-size: 20px; }
+.sg-card:not(.sg-hint) .sg-chev, .sg-card:not(.sg-hint) .sg-tags, .sg-card:not(.sg-hint) .sg-v small { display: none; }
+.sg-card:not(.sg-hint) .sg-row:first-child { padding-right: 12px; }
+.sg-card:not(.sg-hint) .sg-row:nth-last-child(2) { padding-right: 38px; }   /* 最后一格右边留给 ✕ */
+/* 只有一格时（例如没设主题）：恢复完整显示 */
+.sg-card:not(.sg-hint) .sg-row:first-child:nth-last-child(2) .sg-v small { display: inline; }
+.sg-card:not(.sg-hint) .sg-row:first-child:nth-last-child(2) .sg-tags { display: flex; }
+.sg-card:not(.sg-hint) .sg-close { top: calc(50% + var(--sg-pt) / 2); right: 6px; transform: translateY(-50%); }
+/* 本周卡片下面正常留间距，不再叠在一起 */
+#songLibWeekHost:not(:empty) + #songLibCongHost .sg-card:not(.sg-hint) { margin-top: 0; }
+#slMoreTodo:not([hidden]) { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border-soft); }
+.sg-card:not(.sg-hint) { margin-bottom: 10px; }
+
+/* ── 标签栏：电脑 / 平板保持顶部；手机（≤640px）改成底部导航栏，只留 4 项 ── */
+.sl-tab-ico { display: none; }
+#songLibRecentBtn { display: none; }
+@media (max-width: 640px) {
+  .song-lib-tabs {
+    order: 99; gap: 0; padding: 0 4px env(safe-area-inset-bottom); border-bottom: 0;
+    border-top: 1px solid var(--border-soft); background: #fff; box-shadow: 0 -4px 16px rgba(0,0,0,0.04);
+  }
+  .song-lib-tab {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 56px; padding: 6px 2px; margin: 0; border-bottom: 0; font-size: 11.5px; letter-spacing: .2px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .song-lib-tab.nav-hide { display: none; }
+  .song-lib-tab .sl-tab-ico { display: block; font-size: 24px; line-height: 1; }
+  .song-lib-tab.active, .song-lib-tab.sub-active { color: var(--primary); }
+  /* 首页工具栏里的「最近」入口（底部导航里没有「最近使用」） */
+  .song-lib-page.tab-home #songLibRecentBtn { display: inline-flex; }
+  /* 底部迷你播放条抬高，不盖住导航栏 */
+  body:has(.song-lib-page.open:not(.ds-mode):not(.sel-mode)) .floating-audio-bar.show { bottom: calc(70px + env(safe-area-inset-bottom)); }
+}
+
+/* 切换标签时内容淡入（只动透明度，不位移，不会引起布局抖动） */
+.song-lib-main.sl-swap { animation: slSwap .18s ease-out; }
+@keyframes slSwap { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .song-lib-main.sl-swap { animation: none; } }
+
+
+/* 上传审核：通过 / 拒绝按钮并排 */
+.su-act{display:flex;flex-direction:column;gap:6px;align-items:stretch}
+.su-act .sg-go{white-space:nowrap}
+.su-act .su-no{opacity:.75}
+
+/* 管理员待办条：首页顶部，可收起；专属搜索 / 诗歌本页面不显示 */
+.sl-abar { margin: 0 0 10px; border-radius: 12px; background: var(--primary-light); color: var(--primary-dark); flex-shrink: 0; overflow: hidden; }
+.sl-abar[hidden] { display: none !important; }
+#songLibraryOverlay.ds-mode .sl-abar, #songLibraryOverlay.tab-books .sl-abar { display: none; }
+.sl-abar-h { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; background: none; border: 0; color: inherit; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; text-align: left; }
+.sl-abar-h > i:first-child { font-size: 16px; }
+.sl-abar-h > span { flex: 1; }
+.sl-abar-c { font-size: 14px; opacity: .7; transition: transform .2s; }
+.sl-abar.fold .sl-abar-c { transform: rotate(-90deg); }
+.sl-abar-b { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; }
+.sl-abar-i { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 0; border-radius: 999px; background: #fff; color: var(--primary-dark); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-sm); }
+.sl-abar-i i { font-size: 14px; }
+.sl-abar-i:active { transform: scale(.97); }

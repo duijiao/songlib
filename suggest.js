@@ -5,6 +5,8 @@
  *   getSongLibTags / songLibHasTag / weekPickSel / weekPickToggle / renderWeekPick / songLibPickWeekSongs …
  * 数据在两张独立的表里（见 supabase_song_requests.sql）：song_requests（点歌，任何人可投）、song_themes（主题，管理员可写）。
  * 表还没建好时，普通用户什么都看不到；管理员会在首页看到一条「还没开通」的提示。
+ * 【同步本周证道】本周主题优先取排班表里设置的「本周证道」（church_app_state 里的 sermon_themes_by_date / sermon_passages_by_date / sermon_by_date），
+ *   讲题 = 主题，证道经文 = 经文，证道人 = 备注；管理员在这里补充的关键词 / 标签（song_themes 表）会叠加上去，用来让推荐更准。
  */
 (function () {
   'use strict';
@@ -13,7 +15,7 @@
   const T_REQ = 'song_requests', V_REQ = 'song_requests_public', T_THEME = 'song_themes';
   const MAX_PER_WEEK = 3;
   const st = {
-    reqOk: false, themeOk: false, missing: false, draft: null, hidden: false,
+    reqOk: false, themeOk: false, sermonOk: false, sermon: null, missing: false, draft: null, hidden: false,
     requests: [], theme: null, loadedAt: 0, loading: null,
     agg: [], rec: [], recKey: '', sug: [], chosenId: '', editing: false, tagsDraft: [], busy: false,
   };
@@ -64,6 +66,44 @@
     openLightboxWithList([{ title: s.title, src: k.src, songId: s.id }], 0);
   }
 
+  // ───────── 本周证道（来自排班表）─────────
+  const BOOKS = {
+    gen: '创世记', exo: '出埃及记', lev: '利未记', num: '民数记', deu: '申命记', jos: '约书亚记', jdg: '士师记', rut: '路得记',
+    '1sa': '撒母耳记上', '2sa': '撒母耳记下', '1ki': '列王纪上', '2ki': '列王纪下', '1ch': '历代志上', '2ch': '历代志下',
+    ezr: '以斯拉记', neh: '尼希米记', est: '以斯帖记', job: '约伯记', psa: '诗篇', pro: '箴言', ecc: '传道书', sng: '雅歌',
+    isa: '以赛亚书', jer: '耶利米书', lam: '耶利米哀歌', ezk: '以西结书', dan: '但以理书', hos: '何西阿书', jol: '约珥书',
+    amo: '阿摩司书', oba: '俄巴底亚书', jon: '约拿书', mic: '弥迦书', nam: '那鸿书', hab: '哈巴谷书', zep: '西番雅书',
+    hag: '哈该书', zec: '撒迦利亚书', mal: '玛拉基书', mat: '马太福音', mar: '马可福音', luk: '路加福音', joh: '约翰福音',
+    act: '使徒行传', rom: '罗马书', '1co': '哥林多前书', '2co': '哥林多后书', gal: '加拉太书', eph: '以弗所书', phi: '腓立比书',
+    col: '歌罗西书', '1th': '帖撒罗尼迦前书', '2th': '帖撒罗尼迦后书', '1ti': '提摩太前书', '2ti': '提摩太后书', tit: '提多书',
+    phm: '腓利门书', heb: '希伯来书', jas: '雅各书', '1pe': '彼得前书', '2pe': '彼得后书', '1jn': '约翰一书', '2jn': '约翰二书',
+    '3jn': '约翰三书', jud: '犹大书', rev: '启示录',
+  };
+  const SERMON_COLS = 'sermon_by_date,sermon_passages_by_date,sermon_themes_by_date';
+  const strOf = v => (typeof v === 'string' ? v.trim() : '');
+  function passageText(list) {
+    if (!Array.isArray(list)) return '';
+    return list.filter(x => x && x.bookAbbr).map(x => {
+      const start = Number(x.verseStart) || 1, end = Math.max(start, Number(x.verseEnd) || start);
+      return `${BOOKS[x.bookAbbr] || x.bookAbbr} ${x.chapter}:${start}${end !== start ? '-' + end : ''}`;
+    }).join('；');
+  }
+  function sermonOf(row, wk) {
+    if (!row || typeof row !== 'object') return null;
+    const get = f => (row[f] && typeof row[f] === 'object') ? row[f][wk] : undefined;
+    const title = strOf(get('sermon_themes_by_date'));
+    const scripture = passageText(get('sermon_passages_by_date'));
+    let preacher = strOf(get('sermon_by_date'));
+    if (/待上传/.test(preacher)) preacher = '';
+    return (title || scripture || preacher) ? { title, scripture, preacher } : null;
+  }
+  // 最终用来推荐的主题：有证道讲题就以讲题 / 证道经文为准，同工补充的关键词、标签、备注叠加上去
+  function theme() {
+    const m = st.theme, s = st.sermon;
+    if (!s || !s.title) return m;
+    return Object.assign({}, m || {}, { title: s.title, scripture: s.scripture || (m && m.scripture) || '', preacher: s.preacher || '', fromSermon: true });
+  }
+
   // ───────── 读取云端 ─────────
   async function load(force) {
     const c = client();
@@ -72,12 +112,15 @@
     if (!force && st.loadedAt && Date.now() - st.loadedAt < 20000) return true;
     st.loading = (async () => {
       const wk = songLibCurWeekKey();
-      const [r1, r2] = await Promise.all([
+      const [r1, r2, r3] = await Promise.all([
         c.from(V_REQ).select('id,created_at,req_week,song_title,song_id,reason,nickname,status')
           .eq('req_week', wk).order('created_at', { ascending: false }).limit(300),
         c.from(T_THEME).select('*').eq('week_key', wk).maybeSingle(),
+        c.from('church_app_state').select(SERMON_COLS).eq('id', 1).maybeSingle(),   // 排班表里的本周证道
       ]);
       st.reqOk = !r1.error; st.themeOk = !r2.error;
+      st.sermonOk = !r3.error; st.sermon = r3.error ? null : sermonOf(r3.data, wk);
+      if (r3.error) diag(r3.error, 'load.sermon');
       st.missing = isMissingErr(r1.error) || isMissingErr(r2.error);
       if (r1.error && !isMissingErr(r1.error)) diag(r1.error, 'load.req');
       if (r2.error && !isMissingErr(r2.error)) diag(r2.error, 'load.theme');
@@ -85,11 +128,11 @@
       st.theme = r2.error ? null : (r2.data || null);
       st.loadedAt = Date.now(); st.recKey = '';
       return true;
-    })().catch(e => { diag(e, 'load'); st.reqOk = st.themeOk = false; return false; })
+    })().catch(e => { diag(e, 'load'); st.reqOk = st.themeOk = st.sermonOk = false; return false; })
       .finally(() => { st.loading = null; refreshAll(); });
     return st.loading;
   }
-  function enabled() { return st.reqOk || st.themeOk; }
+  function enabled() { return st.reqOk || st.themeOk || st.sermonOk; }
 
   // ───────── 点歌汇总 ─────────
   function aggregate() {
@@ -166,7 +209,7 @@
     return out.sort((a, b) => b.sc - a.sc).slice(0, 20);
   }
   function recs() {
-    const th = st.theme;
+    const th = theme();
     const key = JSON.stringify([th, songLibrary.length, st.requests.length, Object.keys(songData || {}).length, songLibCurWeekKey()]);
     if (key !== st.recKey) { st.rec = recommend(th); st.recKey = key; }
     return st.rec;
@@ -204,9 +247,9 @@
       return;
     }
     aggregate();
-    const th = st.theme;
+    const th = theme();
     let rows = '';
-    if (st.themeOk && (th || isAdmin)) {
+    if ((st.themeOk || st.sermonOk) && (th || (isAdmin && st.themeOk))) {
       const tags = th ? themeTags(th).slice(0, 4).map(t => `<span class="sg-tag">${esc(t)}</span>`).join('') : '';
       rows += `<button type="button" class="sg-row" id="sgThemeRow" onclick="SG.openTheme()"><i class="ti ti-bulb"></i>
         <div class="sg-main"><div class="sg-k">本周主题</div>
@@ -216,7 +259,7 @@
     if (st.reqOk) {
       const n = st.agg.reduce((x, a) => x + a.count, 0);
       rows += `<button type="button" class="sg-row" id="sgBoxRow" onclick="SG.openBox()"><i class="ti ti-mailbox"></i>
-        <div class="sg-main"><div class="sg-k">点歌建议箱</div><div class="sg-v">想唱哪首？告诉主领${n ? `<small>本周已收到 ${n} 条</small>` : ''}</div></div><i class="ti ti-chevron-right sg-chev"></i></button>`;
+        <div class="sg-main"><div class="sg-k">点歌建议箱</div><div class="sg-v">${n ? `本周已收到 ${n} 条` : '想唱哪首？告诉主领'}</div></div><i class="ti ti-chevron-right sg-chev"></i></button>`;
     }
     host.innerHTML = rows ? `<section class="sg-card">${rows}<button type="button" class="sg-close" onclick="SG.hideCard()" aria-label="隐藏这张卡片" title="隐藏这张卡片"><i class="ti ti-x"></i></button></section>` : '';
   }
@@ -369,30 +412,32 @@
       <div class="sg-info"><div class="sg-name">${esc(r.s.title)}</div><div class="sg-chips">${chips}</div></div>${act}</div>`;
   }
   function themeFormHtml() {
-    const th = st.draft || {}, all = getSongLibTags();
+    const th = st.draft || {}, all = getSongLibTags(), lock = !!(st.sermon && st.sermon.title);
     return `<div class="sg-form">
-      <input class="week-pick-search" id="sgThTitle" type="text" maxlength="40" placeholder="主题（必填，例如：感恩与盼望）" value="${esc(th.title || '')}">
-      <input class="week-pick-search" id="sgThScr" type="text" maxlength="60" placeholder="经文（选填，例如：诗篇 100）" value="${esc(th.scripture || '')}">
+      ${lock ? '<div class="mg-tip">讲题和经文已同步自排班表里的本周证道，要改请到排班表修改；这里补充关键词和标签，推荐会更准。</div>' : ''}
+      <input class="week-pick-search" id="sgThTitle" type="text" maxlength="40" placeholder="主题（必填，例如：感恩与盼望）" value="${esc(th.title || '')}"${lock ? ' readonly' : ''}>
+      <input class="week-pick-search" id="sgThScr" type="text" maxlength="60" placeholder="经文（选填，例如：诗篇 100）" value="${esc(th.scripture || '')}"${lock ? ' readonly' : ''}>
       <input class="week-pick-search" id="sgThKw" type="text" maxlength="80" placeholder="关键词（选填，用空格或逗号分开：盼望 复兴 医治）" value="${esc(th.keywords || '')}">
       <div class="sg-form-l">主题标签（可多选，没有合适的可以不选）</div>
       <div class="sg-tagpick">${all.length ? all.map((t, i) => `<button type="button" class="song-lib-tagchip${st.tagsDraft.some(x => x.toLowerCase() === t.toLowerCase()) ? ' on' : ''}" onclick="SG.thTag(${i})">${esc(t)}</button>`).join('') : '<span class="sg-dim">还没有主题标签，先在筛选里添加</span>'}</div>
       <input class="week-pick-search" id="sgThNote" type="text" maxlength="120" placeholder="备注（选填，给主领的话）" value="${esc(th.note || '')}">
-      <div class="sg-form-act"><button type="button" class="btn-cancel" onclick="SG.cancelEdit()">取消</button>${st.theme ? '<button type="button" class="btn-cancel sg-danger" onclick="SG.clearTheme()">清除主题</button>' : ''}<button type="button" class="btn-save" onclick="SG.saveTheme()">保存主题</button></div></div>`;
+      <div class="sg-form-act"><button type="button" class="btn-cancel" onclick="SG.cancelEdit()">取消</button>${st.theme ? `<button type="button" class="btn-cancel sg-danger" onclick="SG.clearTheme()">${lock ? '清除补充' : '清除主题'}</button>` : ''}<button type="button" class="btn-save" onclick="SG.saveTheme()">保存主题</button></div></div>`;
   }
   function renderTheme() {
     const body = $('sgThemeBody'); if (!body) return;
-    const th = st.theme, wk = songLibCurWeekKey();
+    const th = theme(), wk = songLibCurWeekKey();
     let html = '';
     if (st.editing && isAdmin) { body.innerHTML = themeFormHtml(); return; }
     if (th) {
       html += `<div class="sg-theme-head"><div class="sg-theme-date">${dateText(wk)} 主日</div><div class="sg-theme-title">${esc(th.title)}</div>
         ${th.scripture ? `<div class="sg-theme-scr"><i class="ti ti-book"></i>${esc(th.scripture)}</div>` : ''}
+        ${th.preacher ? `<div class="sg-theme-note">证道：${esc(th.preacher)}</div>` : ''}
         ${th.note ? `<div class="sg-theme-note">${esc(th.note)}</div>` : ''}
         <div class="sg-tags">${themeTags(th).map(t => `<span class="sg-tag">${esc(t)}</span>`).join('')}</div></div>`;
     } else {
-      html += `<div class="sg-empty">${isAdmin ? '还没有设置本周主题，设置后这里会按主题推荐歌曲。' : '主领和同工还没有设置本周主题。'}</div>`;
+      html += `<div class="sg-empty">${isAdmin ? '还没有本周主题。在排班表里填好本周证道的讲题，这里会自动同步；也可以直接在这里设置，设置后会按主题推荐歌曲。' : '主领和同工还没有设置本周主题。'}</div>`;
     }
-    if (isAdmin) html += `<button type="button" class="ol-btn ghost sg-edit" id="sgThemeEditBtn" onclick="SG.editTheme()"><i class="ti ti-pencil"></i> ${th ? '编辑主题' : '设置主题'}</button>`;
+    if (isAdmin && st.themeOk) html += `<button type="button" class="ol-btn ghost sg-edit" id="sgThemeEditBtn" onclick="SG.editTheme()"><i class="ti ti-pencil"></i> ${th && th.fromSermon ? '补充关键词 / 标签' : th ? '编辑主题' : '设置主题'}</button>`;
     if (th) {
       const r = recs();
       html += `<div class="ol-sec-title">推荐诗歌${r.length ? `（${r.length}）` : ''}</div><div class="mg-tip">按标签、歌名、歌词里的相关词来找；没唱过、很久没唱的排前面，上周刚唱的会提醒。</div>`;
@@ -408,9 +453,9 @@
   function closeTheme(e) { if (e && e.target !== e.currentTarget) return; const o = $('sgThemeOverlay'); if (o) o.classList.remove('open'); st.editing = false; }
   function editTheme() {
     if (!isAdmin) return;
-    const th = st.theme || {};
+    const th = st.theme || {}, sm = st.sermon && st.sermon.title ? st.sermon : null;
     st.editing = true; st.tagsDraft = (th.tags || []).slice();
-    st.draft = { title: th.title || '', scripture: th.scripture || '', keywords: th.keywords || '', note: th.note || '' };
+    st.draft = { title: sm ? sm.title : (th.title || ''), scripture: sm ? (sm.scripture || th.scripture || '') : (th.scripture || ''), keywords: th.keywords || '', note: th.note || '' };
     renderTheme();
   }
   function readDraft() {
@@ -436,7 +481,7 @@
   }
   async function clearTheme() {
     if (!isAdmin || !st.theme) return;
-    if (!await slConfirm('清除本周主题？')) return;
+    if (!await slConfirm(st.sermon && st.sermon.title ? '清除补充的关键词和标签？（本周证道的讲题不受影响）' : '清除本周主题？')) return;
     const c = client(); if (!c) return;
     const { error } = await c.from(T_THEME).delete().eq('week_key', songLibCurWeekKey());
     if (error) { diag(error, 'clearTheme'); toast('操作失败：需要先登录管理员'); return; }
@@ -451,7 +496,7 @@
     const el = $('weekPickThemeBox'); if (!el) return;
     let html = '';
     if (enabled()) {
-      const th = st.theme, r = th ? recs().slice(0, 8) : [];
+      const th = theme(), r = th ? recs().slice(0, 8) : [];
       const reqs = aggregate().filter(a => a.lib).slice(0, 8);
       const chip = (title, cls, sub, onclick) => `<button type="button" class="sg-chip${cls}" onclick="${onclick}"><b>${esc(title)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
       html += `<div class="sg-pick-head"><i class="ti ti-bulb"></i><span>${th ? '本周主题：<b>' + esc(th.title) + '</b>' : '还没设置本周主题'}</span><button type="button" onclick="SG.openTheme()">${th ? '详情' : '去设置'}</button></div>`;

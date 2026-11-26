@@ -1207,6 +1207,7 @@ function openSongLibrary(){
   songLibSearchOpen = false;
   songLibSearchMode = 'lib';
   document.getElementById('songLibraryOverlay').classList.remove('ds-mode');
+  songLibPlaceViewSwitch();
   document.querySelectorAll('#songLibDsSwitch button').forEach(b => b.classList.toggle('active', b.dataset.mode === 'lib'));
   document.getElementById('songLibSearchWrap')?.classList.remove('open');
   document.getElementById('songLibSearchToggleBtn')?.classList.remove('active');
@@ -1224,20 +1225,42 @@ function openSongLibrary(){
 function renderSongLibTabs(){
   const wrap = document.getElementById('songLibTabs');
   if (!wrap) return;
+  // 电脑 / 平板：顶部标签（5 个）；手机（≤640px）：底部导航，只显示 4 个，「最近使用」藏起来，从首页工具栏的「最近」进入
   const tabs = [
-    { id: 'all', label: '首页' },
-    { id: 'recent', label: '最近使用' },
-    { id: 'books', label: '诗歌本' },
-    { id: 'playlist', label: '我的歌单' },   // 本周选好的歌会自动进来
-    { id: 'favorite', label: '我的收藏' },   // 放在最右边
+    { id: 'all', label: '首页', icon: 'ti-home-2' },
+    { id: 'recent', label: '最近使用', icon: 'ti-history', navHide: true },
+    { id: 'books', label: '诗歌本', icon: 'ti-books' },
+    { id: 'playlist', label: '我的歌单', icon: 'ti-playlist' },   // 本周选好的歌会自动进来
+    { id: 'favorite', label: '我的收藏', icon: 'ti-heart' },       // 放在最右边
   ];
+  wrap.setAttribute('role', 'tablist');
+  const clsOf = t => 'song-lib-tab' + (songLibTab === t.id ? ' active' : '') + (t.navHide ? ' nav-hide' : '') + (t.id === 'all' && songLibTab === 'recent' ? ' sub-active' : '');
+  // 按钮已经存在就只改样式，不重建：重建会让正被按住的按钮瞬间消失再出现，看起来像抖了一下
+  if (wrap.children.length === tabs.length) {
+    tabs.forEach((t, i) => {
+      const b = wrap.children[i];
+      b.className = clsOf(t);
+      b.setAttribute('aria-selected', String(songLibTab === t.id));
+    });
+    return;
+  }
   wrap.innerHTML = tabs.map(t =>
-    `<button class="song-lib-tab${songLibTab === t.id ? ' active' : ''}" onclick="setSongLibTab('${t.id}')">${t.label}</button>`
+    `<button class="${clsOf(t)}" role="tab" aria-selected="${songLibTab === t.id}" onclick="setSongLibTab('${t.id}')"><i class="ti ${t.icon} sl-tab-ico"></i><span class="sl-tab-txt">${t.label}</span></button>`
   ).join('');
 }
 
 function setSongLibTab(tab){
+  // 点的就是当前标签：不重画列表（重画会清空再重建，滚动位置会跳），只平滑回到顶部
+  if (tab === songLibTab && tab !== 'books' && songLibSearchMode === 'lib') {   // 诗歌本除外：再点一次它要从歌本详情回到列表
+    document.querySelector('.song-lib-main')?.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
   songLibTab = tab;
+  {  // 换标签时内容一帧内整块出现 / 消失（搜索框、本周卡片、列表），加一个很短的淡入，肉眼就不会觉得是「跳」或「抖」
+    const m = document.querySelector('.song-lib-main');
+    if (m) { m.classList.remove('sl-swap'); void m.offsetWidth; m.classList.add('sl-swap'); setTimeout(() => m.classList.remove('sl-swap'), 220); }
+  }
+  document.querySelector('.song-lib-main')?.scrollTo({ top: 0 });   // 换标签先回顶部，免得新内容比旧的短时滚动位置被硬拽
   songLibCancelSkeleton();
   // 搜索只在「首页」常驻；切到其他标签时收起搜索并清掉关键词，要用再点右上角放大镜
   if (tab !== 'all') {
@@ -1400,6 +1423,9 @@ function openSongLibAdd(){
   document.getElementById('songLibAddDupHint').classList.remove('show');
   document.getElementById('songLibAddError').classList.remove('show');
   document.getElementById('songLibAddSubmitBtn').disabled = false;
+  document.getElementById('songLibAddSubmitBtn').textContent = isAdmin ? '上传' : '提交审核';
+  const addSub = document.getElementById('songLibAddSub');
+  if (addSub) addSub.textContent = isAdmin ? '管理员上传，提交后立即生效' : '提交后需管理员审核，通过后才会收进诗歌库';
   const fillDatalist = (id, values) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = values.map(c => `<option value="${escapeHtml(c)}">`).join('');
@@ -1467,8 +1493,14 @@ async function submitSongLibAdd(){
   const src = songLibAddPendingSrc || urlInput || '';
   const submitBtn = document.getElementById('songLibAddSubmitBtn');
   submitBtn.disabled = true;
-  submitBtn.textContent = '上传中…';
+  submitBtn.textContent = isAdmin ? '上传中…' : '提交中…';
   try {
+    if (!isAdmin) {   // 非管理员：先交给管理员审核，通过后才收进诗歌库（见 review.js）
+      if (!window.SU) { showToast('审核功能没加载出来，请刷新页面后重试'); return; }
+      const sent = await SU.submit({ title: name, category, band, songbook, keyLabel, lyrics, tags: normalizeSongLibTagList(songLibTagSel.add), src });
+      if (sent) closeSongLibAdd();
+      return;
+    }
     let finalSrc = src;
     // 本地图片优先上传到 Storage 换取真实链接，避免歌单库长期存着巨大的 base64
     if (finalSrc.startsWith('data:') && typeof uploadSongDataUrl === 'function' && initSupabaseClient()) {
@@ -1495,7 +1527,7 @@ async function submitSongLibAdd(){
     await syncSongLibraryToRemote();
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = '上传';
+    submitBtn.textContent = isAdmin ? '上传' : '提交审核';
   }
 }
 
@@ -3086,11 +3118,21 @@ async function songLibDsFetchAzm(keyword, page){
   return { rows, done: rows.length === 0 || !songMore };
 }
 
+// 专属搜索模式下，视图切换按钮并到「全部 / 诗歌本 / 赞美网」同一行；切回诗歌库放回工具栏
+function songLibPlaceViewSwitch(){
+  const sw = document.getElementById('songLibViewSwitch');
+  const row = document.getElementById('songLibDsSrcRow');
+  const bar = document.getElementById('songLibToolbar');
+  if (!sw || !row || !bar) return;
+  const want = songLibSearchMode === 'ds' ? row : bar;
+  if (sw.parentNode !== want) want.appendChild(sw);
+}
 function setSongLibSearchMode(mode){
   songLibSearchMode = mode === 'ds' ? 'ds' : 'lib';
   if (songLibSearchMode === 'ds') document.getElementById('dsPromo')?.classList.remove('dismissed');
   const page = document.getElementById('songLibraryOverlay');
   page.classList.toggle('ds-mode', songLibSearchMode === 'ds');
+  songLibPlaceViewSwitch();
   document.querySelectorAll('#songLibDsSwitch button').forEach(b => b.classList.toggle('active', b.dataset.mode === songLibSearchMode));
   const input = document.getElementById('songLibSearchInput');
   input.placeholder = songLibSearchMode === 'ds' ? '搜歌名，到诗歌本 / 赞美网找歌谱…' : '搜索歌名（可输入拼音首字母，如 qydn）';
@@ -5963,10 +6005,11 @@ function updateAdminUI() {
   try { if (songLibTab === 'books') { songLibBooksUpdateAdminUI(); if (!songLibBookCur) songLibBooksRenderList(); } } catch (e) { slDiag(e, 'updateAdminUI'); }
   document.body.classList.toggle('is-admin', isAdmin);
   const b = document.getElementById('songLibAdminBtn');
-  if (b) { b.classList.toggle('active', isAdmin); b.title = isAdmin ? '管理员已登录（点击退出）' : '管理员登录'; b.setAttribute('aria-label', b.title); }
+  if (b) { b.classList.toggle('active', isAdmin); b.title = isAdmin ? '管理员已登录（点击退出）' : '管理员登录'; b.setAttribute('aria-label', b.title); const bl = b.querySelector('.sl-mi-l'); if (bl) bl.textContent = isAdmin ? '管理员已登录（点此退出）' : '管理员登录'; }
   const sb = document.getElementById('songLibStorageBtn');
   if (sb) sb.style.display = isAdmin ? '' : 'none';
   try { renderSongLibFilterBar(); renderSongLibraryGrid(); updateSongLibImportHint(); } catch (e) { slDiag(e, 'updateAdminUI'); }
+  try { if (window.slMoreRefresh) slMoreRefresh(); } catch (e) { slDiag(e, 'updateAdminUI'); }
   if (typeof songLibDetailCurrent !== 'undefined' && songLibDetailCurrent) { try { renderSongLibLrc(); renderSongLibDetailKeyChips(); const rnb = document.getElementById('songLibDetailRenameBtn'); if (rnb) rnb.style.display = isAdmin ? '' : 'none'; } catch (e) { slDiag(e, 'updateAdminUI'); } }
 }
 async function syncAuthState() {
@@ -5983,6 +6026,13 @@ async function onAdminBtnClick() {
   try { document.getElementById('adminLoginEmail').value = localStorage.getItem('songlibAdminEmail') || ''; } catch (e) { slDiag(e, 'onAdminBtnClick'); }
   document.getElementById('adminLoginOverlay').classList.add('open');
   setTimeout(() => document.getElementById('adminLoginEmail').focus(), 120);
+}
+function adminLoginTogglePass(btn) {
+  const inp = document.getElementById('adminLoginPass');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+  btn.firstElementChild.className = show ? 'ti ti-eye-off' : 'ti ti-eye';
 }
 function closeAdminLogin(e) {
   if (e && e.target !== e.currentTarget) return;
@@ -6093,6 +6143,12 @@ function slNavRootBack() {
 window.addEventListener('popstate', async () => {
   if (slNav.waitDone) { slNav.waitDone(); return; }   // 这次是我们自己 history.go 触发的
   const top = slNav.stack[slNav.stack.length - 1];
+  if (!top && slNav.ready && !slNavSuspended() && typeof songLibTab !== 'undefined' && songLibTab !== 'all') {
+    // 在「诗歌本 / 歌单 / 收藏 / 最近」按返回：回到首页，并补回被这次返回消耗掉的那条历史（用 pushState，不会抖）
+    try { history.pushState({ slnav: 'home' }, ''); } catch (e) { slDiag(e, 'slNav.tabBack'); }
+    setSongLibTab('all');
+    return;
+  }
   if (!top) { slNavRootBack(); return; }
   if (top.guard && !(await top.guard())) { slNav.ops.push({ t: 'push', id: top.id }); slNavPump(); return; }
   slNav.stack.pop();
@@ -6126,12 +6182,9 @@ window.addEventListener('popstate', async () => {
 })();
 // 标签页（最近使用 / 诗歌本 / 我的收藏）、歌本详情、专属搜索也算一层：返回先回到上一级
 (function () {
-  const _tab = setSongLibTab;
-  setSongLibTab = function (tab) {
-    const r = _tab.apply(this, arguments);
-    if (tab && tab !== 'all') slNavOpen('tab', () => _tab('all')); else slNavClosed('tab');
-    return r;
-  };
+  // 切标签（首页 / 诗歌本 / 歌单 / 收藏 / 最近）不再压浏览器历史：
+  // 以前切到非首页会 pushState、点回首页会 history.go(-1)，手机上这次异步的历史回退会让整个页面（导航栏和内容）一起抖一下。
+  // 返回键的行为由 popstate 里「在非首页标签按返回 → 回首页」接管，效果不变。
   const _mode = setSongLibSearchMode;
   setSongLibSearchMode = function (mode) {
     const r = _mode.apply(this, arguments);
@@ -6722,6 +6775,7 @@ function obImgSong() {
   return (d && hasImg(d)) ? d : (songLibrary.find(hasImg) || null);
 }
 function obEl(sel) { try { return typeof sel === 'function' ? sel() : (sel ? document.querySelector(sel) : null); } catch (e) { return null; } }
+const obPhone = () => { try { return window.matchMedia('(max-width:640px)').matches; } catch (e) { return false; } };   // 手机宽度：标签栏在底部，只有 4 项
 function obVisible(el) { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }
 function obSetMainSearch(v) {
   if (songLibSearchMode === 'ds') setSongLibSearchMode('lib');
@@ -6738,15 +6792,13 @@ const OB_STEPS = [
     text: '接下来我会带你把诗歌库从头到尾走一遍，一共 9 个小章节：<br>① 认识首页　② 搜索诗歌　③ 看谱与听歌　④ 分类与筛选　⑤ 上传诗歌　⑥ 管理员　⑦ 主领选歌　⑧ 离线与备份　⑨ 点歌与主题推荐<br>每一步都会<b>高亮</b>对应的位置，点「下一步」继续，随时可以「跳过」。' },
 
   // ── ① 认识首页 ──
-  { part: '认识首页', title: '顶部工具栏', target: '.song-lib-page-top', state: { tab: 'all' },
-    text: '这里是页面标题和几个小图标，<b>右边</b>依次是：<b>管理员登录</b>、<b>？</b>使用引导（随时重看）、<b>离线与备份</b>（云朵图标）、<b>上传诗歌</b>。切到其他标签页时会多出一个<b>放大镜</b>用来搜索；管理员登录后还会多一个<b>齿轮</b>（音乐存储设置）和<b>旗子</b>（歌谱纠错反馈）。最前面的两个图标是<b>长辈模式</b>和<b>字号</b>（下一步细说）。' },
-  { part: '认识首页', title: '长辈模式与字号', target: () => document.getElementById('elderToggleBtn'), state: { tab: 'all', search: '' }, skip: () => !document.getElementById('elderToggleBtn'),
-    text: '给长辈用很方便：<b>Aa 图标</b>一键切换<b>长辈模式</b>——字更大、界面更简洁、只留搜歌和看谱；旁边的<b>字号</b>按钮可在「标准 / 大 / 特大」之间轮流切换。有音频的歌曲还会显示一个绿色<b>播放键</b>，看谱页顶部也有大号的「听歌」按钮，点一下就能边看谱边听。设置会记在这台设备上，点「标准版」就能切回来。<br>把链接后面加上 <b>?elder=1</b> 发给长辈，他们打开就直接是大字版。' },
-  { part: '认识首页', title: '久未使用提醒', target: '#songLibStaleHint', state: { tab: 'all', search: '' }, skip: () => !obVisible(document.getElementById('songLibStaleHint')),
-    text: '首页偶尔会冒出这样一条提醒：有几首歌<b>很久没唱</b>了。点一下就只看这些歌，选歌时想「换换口味」很方便；点右边的 ✕ 可以 7 天内不再提示。' },
-  { part: '认识首页', title: '管理员提示条', target: () => [document.getElementById('songLibImportHint'), document.getElementById('songLibDupHint')].find(obVisible) || null, state: { tab: 'all', search: '' },
-    skip: () => ![document.getElementById('songLibImportHint'), document.getElementById('songLibDupHint')].some(obVisible),
-    text: '管理员登录后，如果有<b>历史排班里唱过、但诗歌库还没收录</b>的歌，会出现「一键导入」条；如果库里有<b>同名歌曲</b>，会出现「合并成一首」条，合并后同一首歌可以切换不同的谱。点一下就能处理。' },
+  { part: '认识首页', title: '顶部工具栏', target: '#slMoreBtn', state: { tab: 'all' },
+    text: '标题右边只有一个<b>⋯「更多」</b>按钮（切到其他标签页时旁边会多一个<b>放大镜</b>用来搜索）。<b>离线与备份、使用引导（随时重看）、长辈模式、字号、上传诗歌、管理员登录</b>都收在里面，首页就清爽多了。管理员登录后，⋯ 上出现<b>红点</b>，说明有事情待处理（下面细说）。' },
+  { part: '认识首页', title: '长辈模式与字号', target: () => { const r = document.getElementById('slMoreElder'); return obVisible(r) ? r : document.getElementById('elderToggleBtn'); }, state: { tab: 'all', search: '', more: true }, skip: () => !document.getElementById('elderToggleBtn'),
+    text: '给长辈用很方便：「更多」菜单里的<b>长辈模式</b>一键切换——字更大、界面更简洁、只留搜歌和看谱；菜单里的<b>字号</b>可在「标准 / 大 / 特大」之间轮流切换。有音频的歌曲还会显示一个绿色<b>播放键</b>，看谱页顶部也有大号的「听歌」按钮，点一下就能边看谱边听。设置会记在这台设备上，点「标准版」就能切回来。<br>把链接后面加上 <b>?elder=1</b> 发给长辈，他们打开就直接是大字版。' },
+  { part: '认识首页', title: '待处理提醒（红点）', target: '#slMoreTodo', state: { tab: 'all', search: '', more: true },
+    skip: () => { try { if (window.slMoreRefresh) slMoreRefresh(); } catch (e) { slDiag(e, 'ob'); } return !document.querySelector('#slMoreTodo .sl-mi'); },
+    text: '管理员登录后，如果有<b>历史排班里唱过、但诗歌库还没收录</b>的歌、有<b>同名歌曲</b>可以合并，或者有歌<b>很久没唱</b>了，「⋯」上就会出现<b>红点</b>，点开这里就能看到，点一下就能处理（久未使用那条点右边的 ✕ 可以 7 天内不再提示）。' },
   { part: '认识首页', title: '本周诗歌卡片', target: '#songLibWeekHost', state: { tab: 'all' },
     text: '首页最上面是<b>本周主日的诗歌</b>：一排谱子缩略图，下面是歌名；有排班的话还会显示<b>主领</b>（请假的人会被划掉）。点缩略图<b>放大看谱</b>，点歌名看歌曲详情。<br>搜索或筛选时这张卡片会自动收起。' },
   { part: '认识首页', title: '发谱子 / 分享', target: () => document.querySelector('#songLibWeekHost .song-lib-weekedit.share') || document.getElementById('songLibWeekHost'), state: { tab: 'all' },
@@ -6797,8 +6849,12 @@ const OB_STEPS = [
     text: '最下面是<b>使用记录</b>：这首歌在哪些主日唱过。选歌时参考它，就不会连续几周唱同一首啦。' },
 
   // ── ④ 分类与筛选 ──
-  { part: '分类与筛选', title: '五个标签页', target: '#songLibTabs', state: { tab: 'all', search: '' },
-    text: '<b>首页</b>：全部诗歌；<b>最近使用</b>：按周看本月唱过的歌；<b>诗歌本</b>：按歌本浏览；<b>我的歌单</b>：<b>本周选好的歌会自动出现在这里</b>，也可以在详情页点「加入歌单」自己添加；<b>我的收藏</b>：你点过 ♡ 的歌。下面我带你各看一眼。' },
+  { part: '分类与筛选', title: () => obPhone() ? '底部导航栏' : '五个标签页', target: '#songLibTabs', state: { tab: 'all', search: '' },
+    text: () => obPhone()
+      ? '屏幕<b>最下面</b>有 4 个按钮：<b>首页</b>：全部诗歌；<b>诗歌本</b>：按歌本浏览；<b>我的歌单</b>：<b>本周选好的歌会自动出现在这里</b>，也可以在详情页点「加入歌单」自己添加；<b>我的收藏</b>：你点过 ♡ 的歌。<br>还有一个<b>最近使用</b>，入口在首页的工具栏里，下一步指给你看。'
+      : '<b>首页</b>：全部诗歌；<b>最近使用</b>：按周看本月唱过的歌；<b>诗歌本</b>：按歌本浏览；<b>我的歌单</b>：<b>本周选好的歌会自动出现在这里</b>，也可以在详情页点「加入歌单」自己添加；<b>我的收藏</b>：你点过 ♡ 的歌。下面我带你各看一眼。' },
+  { part: '分类与筛选', title: '「最近」按钮', target: '#songLibRecentBtn', state: { tab: 'all', search: '' }, skip: () => !obPhone(),
+    text: '点首页工具栏里的<b>「最近」</b>，就能看<b>最近使用</b>：按周看本月唱过的歌。看完点底部的「首页」就回来了。下面我带你各看一眼。' },
   { part: '分类与筛选', title: '最近使用', target: () => document.querySelector('#songLibGrid .song-lib-weekcard') || document.getElementById('songLibGrid'), state: { tab: 'recent' },
     text: '本月<b>每一周一张卡片</b>，最近的在最前面，标着「本周 / 上周 / 上上周」；卡片里的歌谱<b>横向排开</b>，歌名在图下面。想看某首歌上周唱了没有，来这里一眼就知道。点歌名看详情，点缩略图看谱。' },
   { part: '分类与筛选', title: '我的歌单', target: '#songLibGrid', state: { tab: 'playlist' },
@@ -6821,8 +6877,8 @@ const OB_STEPS = [
     text: '工具栏右边可以切换视图：<b>瀑布流</b>以谱图为主，适合快速浏览；<b>列表</b>更紧凑，一屏能看到更多歌名。你的选择会被记住。' },
 
   // ── ⑤ 上传诗歌 ──
-  { part: '上传诗歌', title: '上传入口', target: 'button[onclick="openSongLibAdd()"]', state: { tab: 'all', search: '' },
-    text: '右上角的<b>上传图标</b>，<b>任何人</b>都可以用，提交后立即生效。我帮你打开上传窗口看看 👉' },
+  { part: '上传诗歌', title: '上传入口', target: 'button[onclick="openSongLibAdd()"]', state: { tab: 'all', search: '', more: true },
+    text: '「⋯」菜单里的<b>上传诗歌</b>，<b>任何人</b>都可以用，提交后立即生效。我帮你打开上传窗口看看 👉' },
   { part: '上传诗歌', title: '填写歌曲信息', target: '#songLibAddName', state: { tab: 'all', search: '', add: true },
     text: '<b>诗歌名称</b>是必填项。如果库里已经有同名歌，会立刻提示「已经有同名诗歌了」，避免重复上传。下面还可以填<b>分类、乐团、诗歌本</b>，并点选<b>主题标签</b>。' },
   { part: '上传诗歌', title: '添加谱子', target: '#songLibAddOverlay .local-upload-btn', state: { tab: 'all', search: '', add: true },
@@ -6831,11 +6887,11 @@ const OB_STEPS = [
     text: '歌词可以顺手粘贴（以后能一键下载纯文字歌词）。都填好后点「<b>上传</b>」就收录啦。现在只是演示，我会帮你把窗口关掉，什么也不会提交。' },
 
   // ── ⑥ 管理员 ──
-  { part: '管理员', title: '管理员登录入口', target: '#songLibAdminBtn', state: { tab: 'all', search: '' },
-    text: '这个盾牌图标是<b>管理员登录</b>。登录后图标会变成高亮色，再点一下可以退出。普通用户不登录也能搜歌、看谱、听歌、上传。' },
+  { part: '管理员', title: '管理员登录入口', target: '#songLibAdminBtn', state: { tab: 'all', search: '', more: true },
+    text: '「⋯」菜单里的<b>管理员登录</b>（盾牌图标）。登录后这一行会变成高亮色，再点一下可以退出。普通用户不登录也能搜歌、看谱、听歌、上传。' },
   { part: '管理员', title: '登录窗口', target: '#adminLoginEmail', state: { tab: 'all', search: '', login: true }, skip: () => isAdmin,
     text: '输入管理员的<b>邮箱和密码</b>就能登录，账号和排班表是同一套。主领选歌也需要先登录，没登录时点「我要选歌」会自动弹出这个窗口，登录成功后直接进入选歌。' },
-  { part: '管理员', title: '管理员能做什么', target: '#songLibAdminBtn', state: { tab: 'all', search: '' },
+  { part: '管理员', title: '管理员能做什么', target: '#songLibAdminBtn', state: { tab: 'all', search: '', more: true },
     text: '登录后会多出这些功能：<b>选本周诗歌</b>、<b>修改歌名 / 调名</b>、<b>批量选择</b>歌曲统一设置标签和诗歌本、<b>合并同名歌曲</b>、管理<b>诗歌本和标签</b>、设置<b>动态歌词</b>（LRC 时间轴）、<b>音乐存储设置</b>、选歌时在谱子上<b>标记涂改</b>，以及查看大家提交的歌谱<b>纠错反馈</b>。下面几步挑最常用的演示（只有管理员登录后才会看到）。' },
 
   { part: '管理员', title: '批量选择', target: '#songLibBatchBtn', state: { tab: 'all', search: '' }, skip: () => !isAdmin,
@@ -6844,10 +6900,10 @@ const OB_STEPS = [
     text: '底部出现操作条：显示<b>已选几首</b>，可以<b>全选</b>；「<b>合并</b>」把勾选的几首同名歌合成一首；「<b>设置标签</b>」统一加标签、去标签、改诗歌本。点「取消」退出批量模式。' },
   { part: '管理员', title: '批量设置标签 / 诗歌本', target: '#songLibBatchOverlay .song-lib-filter-drawer', state: { tab: 'all', search: '', batch: 'drawer' }, skip: () => !isAdmin || !songLibrary.length,
     text: '<b>添加标签</b>：点选的标签会加到所有已选歌曲上，也能点「＋新标签」现建一个；<b>移除标签</b>：列出已选歌曲里已有的标签，点选后统一去掉；<b>设置诗歌本</b>：留空表示不修改。点「应用」才会生效，并同步到云端。现在只是演示，我不会应用。' },
-  { part: '管理员', title: '歌谱纠错反馈收件箱', target: '#fxInboxBtn', state: { tab: 'all', search: '' }, skip: () => !isAdmin || !document.getElementById('fxInboxBtn'),
-    text: '这个<b>旗子图标</b>是大家提交的歌谱纠错，右上角的小红点表示还有<b>未处理</b>的。点开可以<b>看谱</b>定位到那一页、标为<b>已处理</b>或删除；也可以点「显示已处理」翻旧账。看谱时点「纠错」，还能看到这首歌已有的纠错。' },
-  { part: '管理员', title: '音乐存储设置', target: '#songLibStorageBtn', state: { tab: 'all', search: '' }, skip: () => !isAdmin,
-    text: '<b>齿轮图标</b>用来配置存放 mp3 的 Supabase 存储（项目地址、anon key、bucket 名称，默认 songs）。配好后，给歌曲添加音乐链接时就能<b>直接上传 mp3</b>，不用再另外找地方存。只需要设置一次。' },
+  { part: '管理员', title: '歌谱纠错反馈收件箱', target: '#fxInboxBtn', state: { tab: 'all', search: '', more: true }, skip: () => !isAdmin || !document.getElementById('fxInboxBtn'),
+    text: '菜单里的<b>歌谱纠错反馈</b>（旗子图标）收着大家提交的纠错，后面的红色数字表示还有<b>未处理</b>的。点开可以<b>看谱</b>定位到那一页、标为<b>已处理</b>或删除；也可以点「显示已处理」翻旧账。看谱时点「纠错」，还能看到这首歌已有的纠错。' },
+  { part: '管理员', title: '音乐存储设置', target: '#songLibStorageBtn', state: { tab: 'all', search: '', more: true }, skip: () => !isAdmin,
+    text: '菜单里的<b>音乐存储设置</b>（齿轮图标）用来配置存放 mp3 的 Supabase 存储（项目地址、anon key、bucket 名称，默认 songs）。配好后，给歌曲添加音乐链接时就能<b>直接上传 mp3</b>，不用再另外找地方存。只需要设置一次。' },
 
   // ── ⑦ 主领选歌 ──
   { part: '主领选歌', title: '主领从这里开始', target: '#songLibWeekHost', state: { tab: 'all', search: '' },
@@ -6872,8 +6928,8 @@ const OB_STEPS = [
     text: '保存后首页的「本周诗歌」就会显示你选的歌。你可以再点<b>发谱子</b>把谱子发到微信群，或点<b>分享</b>生成海报，大家就能提前准备啦。' },
 
   // ── ⑧ 离线与备份 ──
-  { part: '离线与备份', title: '离线与备份入口', target: '#olOpenBtn', state: { tab: 'all', search: '' },
-    text: '顶部的<b>云朵图标</b>是「<b>离线与备份</b>」。离线歌谱、导出 PDF 歌本、数据备份、问题排查都收在这里，首页就不会塞太多按钮。下面我帮你打开看看 👉' },
+  { part: '离线与备份', title: '离线与备份入口', target: '#olOpenBtn', state: { tab: 'all', search: '', more: true },
+    text: '「⋯」菜单里的<b>离线与备份</b>（云朵图标）。离线歌谱、导出 PDF 歌本、数据备份、问题排查都收在这里，首页就不会塞太多按钮。下面我帮你打开看看 👉' },
   { part: '离线与备份', title: '离线歌谱包', target: '#olBody', state: { ol: true },
     text: '教会没信号怎么办？选一周或一个诗歌本，点「<b>下载</b>」把谱图存到这台设备里，<b>没信号也能看谱</b>。每周选了新歌后，回来点「<b>更新</b>」补齐。上面的小条会显示网络和存储状态。' },
   { part: '离线与备份', title: '导出 PDF 歌本', target: '#songLibExportBtn', state: { ol: true },
@@ -6887,7 +6943,7 @@ const OB_STEPS = [
 
   // ── ⑨ 点歌建议箱与主题推荐 ──
   { part: '点歌与主题推荐', title: '本周主题与点歌箱', target: '#songLibCongHost', state: { tab: 'all', search: '' }, skip: () => !(window.SG && SG.enabled()),
-    text: '首页本周诗歌下面有一张<b>会众小卡片</b>：上面是同工设置的<b>本周主题</b>，下面是<b>点歌建议箱</b>。人人都能看、能点，<b>不用登录</b>。不想看到这张卡片，点右上角的 ✕ 就能隐藏，想恢复到「筛选 → 会众卡片」里打开。' },
+    text: '首页本周诗歌下面有一张<b>会众小卡片</b>：上面是<b>本周主题</b>（自动取自排班表里的本周证道讲题），下面是<b>点歌建议箱</b>。人人都能看、能点，<b>不用登录</b>。不想看到这张卡片，点右上角的 ✕ 就能隐藏，想恢复到「筛选 → 会众卡片」里打开。' },
   { part: '点歌与主题推荐', title: '点歌建议箱', target: '#sgForm', state: { sg: 'box' }, skip: () => !(window.SG && SG.enabled()),
     text: '想唱哪首？输入<b>歌名或拼音首字母</b>，库里有的会自动提示；可以写一句<b>原因</b>，称呼不填就显示「匿名」。每人每周最多点 <b>3 首</b>，同一首只能点一次。<br>点歌只是给主领的<b>参考</b>，是否安排由主领和同工决定。（现在只是演示，不会真的提交。）' },
   { part: '点歌与主题推荐', title: '大家想唱的歌', target: '#sgList', state: { sg: 'box' }, skip: () => !(window.SG && SG.enabled()),
@@ -6895,13 +6951,13 @@ const OB_STEPS = [
   { part: '点歌与主题推荐', title: '按主题推荐', target: '#sgThemeBody', state: { sg: 'theme' }, skip: () => !(window.SG && SG.enabled()),
     text: '点主题那一行，会看到<b>主题推荐</b>：根据主题里的<b>标签和关键词</b>，到歌名、标签、歌词里找相关的歌，并写明理由，比如「标签：感恩」「歌词含「盼望」」。<b>从未用过、很久没唱</b>的排前面，<b>上周刚唱过</b>的会提醒。会众也可以提前看看、听听。' },
   { part: '点歌与主题推荐', title: '设置本周主题（管理员）', target: '#sgThemeEditBtn', state: { sg: 'theme' }, skip: () => !(window.SG && SG.enabled()) || !isAdmin,
-    text: '管理员点「<b>设置主题 / 编辑主题</b>」，填<b>主题、经文、关键词</b>，再点选几个<b>主题标签</b>，保存后大家就能看到。关键词越具体、歌曲的标签越全，推荐就越准。' },
+    text: '本周证道的<b>讲题和经文</b>会自动同步过来。管理员点「<b>补充关键词 / 标签</b>」，再填几个<b>关键词</b>、点选几个<b>主题标签</b>，保存后大家就能看到。关键词越具体、歌曲的标签越全，推荐就越准。（排班表里还没填证道时，这里仍可直接设置主题。）' },
   { part: '点歌与主题推荐', title: '选歌时直接用推荐', target: '#weekPickThemeBox', state: { pick: true, pickSearch: '', pickSel: true }, skip: () => !(window.SG && SG.enabled()),
     text: '主领选歌窗口顶部有两排：<b>主题推荐</b>和<b>会众点歌</b>。点一下歌名就加入已选名单，再点一下移出，不用再来回搜。选好后照常点「保存」。' },
 
   // ── 结束 ──
   { title: '导览完成 🎉', state: { tab: 'all', search: '' }, next: '完成',
-    text: '你已经掌握诗歌库的全部功能啦：<b>搜歌 → 看谱 → 听歌 → 收藏 → 筛选 → 上传 → 选歌 → 分享 → 离线与备份 → 点歌与主题</b>。<br>以后想再看一遍，点右上角的 <b>？</b> 按钮就行。愿诗歌带领大家一起敬拜 🙏' },
+    text: '你已经掌握诗歌库的全部功能啦：<b>搜歌 → 看谱 → 听歌 → 收藏 → 筛选 → 上传 → 选歌 → 分享 → 离线与备份 → 点歌与主题</b>。<br>以后想再看一遍，点右上角的 <b>⋯</b>，选「使用引导」就行。愿诗歌带领大家一起敬拜 🙏' },
 ];
 
 function obApply(st) {
@@ -6918,6 +6974,7 @@ function obApply(st) {
   if (!st.batch && songLibSelMode) songLibBatchExit();
   if (st.batch !== 'drawer') q('songLibBatchOverlay').classList.remove('open');
   if (!st.login) q('adminLoginOverlay').classList.remove('open');
+  if (!st.more && window.slMoreClose) slMoreClose();
   if (!st.filter) q('songLibFilterOverlay').classList.remove('open');
   if (!st.ds && songLibSearchMode === 'ds') { q('songLibSearchInput').value = ''; setSongLibSearchMode('lib'); }
   if (songLibTab !== tab) setSongLibTab(tab);
@@ -6942,6 +6999,7 @@ function obApply(st) {
   if (st.exp && window.SLPDF && !q('songLibExportOverlay').classList.contains('open')) SLPDF.open();
   if (st.add && !q('songLibAddOverlay').classList.contains('open')) openSongLibAdd();
   if (st.login) q('adminLoginOverlay').classList.add('open');
+  if (st.more && window.slMoreOpen) slMoreOpen();
   if (st.detail && !q('songLibDetailOverlay').classList.contains('open')) {
     const s = obDemoSong() || songLibrary[0]; if (s) openSongLibDetail(s.id);
   }
@@ -6990,7 +7048,7 @@ function obRenderTip(s) {
   const tip = ob.tip, total = ob.steps.length, i = ob.i;
   tip.querySelector('.ob-step').textContent = `第 ${i + 1} / ${total} 步` + (s.part ? ' · ' + s.part : '');
   tip.querySelector('.ob-fill').style.width = ((i + 1) / total * 100) + '%';
-  tip.querySelector('.ob-title').textContent = s.title;
+  tip.querySelector('.ob-title').textContent = typeof s.title === 'function' ? s.title() : s.title;
   tip.querySelector('.ob-text').innerHTML = typeof s.text === 'function' ? s.text() : s.text;
   tip.querySelector('.ob-prev').style.display = i === 0 ? 'none' : '';
   tip.querySelector('.ob-skip').style.display = i === total - 1 ? 'none' : '';
@@ -7086,7 +7144,7 @@ function obEnd() {
   try { localStorage.setItem(OB_KEY, '1'); } catch (e) { slDiag(e, 'obEnd'); }
   obApply({ tab: 'all', search: '' });
   const m = document.querySelector('.song-lib-main'); if (m) m.scrollTop = 0;
-  showToast('随时点右上角的 ? 可以重新查看引导', 3000);
+  showToast('随时点右上角 ⋯ →「使用引导」可以重新查看', 3000);
 }
 function obAutoStart() {
   try { if (localStorage.getItem(OB_KEY)) return; } catch (e) { slDiag(e, 'obAutoStart'); }
@@ -7130,6 +7188,7 @@ function slScrollUXInit() {
   page.appendChild(top);
   const placeTop = () => {
     let b = 20;
+    if (window.matchMedia('(max-width:640px)').matches && !page.classList.contains('sel-mode') && !page.classList.contains('ds-mode')) b += 62;   // 躲开底部导航栏
     const bar = document.getElementById('floatingAudioBar');
     if (typeof floatingAudioVisible !== 'undefined' && floatingAudioVisible && bar) b += (bar.offsetHeight || 64) + 12;   // 躲开底部迷你播放条
     if (page.classList.contains('sel-mode')) b += 64;                                                                   // 躲开批量选择操作条

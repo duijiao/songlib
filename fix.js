@@ -228,10 +228,10 @@
     if ($('fxInboxBtn')) return;
     const ref = $('songLibAdminBtn'); if (!ref || !ref.parentNode) return;
     const b = document.createElement('button');
-    b.className = 'song-lib-page-search-btn'; b.id = 'fxInboxBtn'; b.style.display = 'none';
+    b.className = 'song-lib-page-search-btn sl-mi'; b.id = 'fxInboxBtn'; b.style.display = 'none';
     b.title = '歌谱纠错反馈（管理员）'; b.setAttribute('aria-label', '歌谱纠错反馈');
     b.setAttribute('onclick', 'FX.openInbox()');
-    b.innerHTML = '<i class="ti ti-flag"></i><span class="fx-dot" id="fxDot"></span>';
+    b.innerHTML = '<i class="ti ti-flag"></i><span class="sl-mi-l">歌谱纠错反馈</span><span class="fx-dot" id="fxDot"></span>';
     ref.parentNode.insertBefore(b, ref);
   }
   function onAdmin() {
