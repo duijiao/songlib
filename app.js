@@ -4534,12 +4534,65 @@ function ensureGlobalAudioEl() {
   el.style.width = '100%';
   el.preload = 'auto';
   el.addEventListener('ended', onGlobalAudioEnded);
-  el.addEventListener('play', () => { updateFloatingAudioPlayState(); renderNowPlayingTransport(); });
-  el.addEventListener('pause', () => { updateFloatingAudioPlayState(); renderNowPlayingTransport(); });
+  el.addEventListener('play', () => { updateFloatingAudioPlayState(); renderNowPlayingTransport(); updateMediaPosition(); });
+  el.addEventListener('pause', () => { updateFloatingAudioPlayState(); renderNowPlayingTransport(); updateMediaPosition(); });
   el.addEventListener('timeupdate', () => { updateFloatingAudioProgress(); updateNowPlayingProgress(); });
+  el.addEventListener('play', updateMediaSession);
+  el.addEventListener('loadedmetadata', () => { updateMediaSession(); updateMediaPosition(); });
+  el.addEventListener('durationchange', updateMediaPosition);
+  el.addEventListener('seeked', updateMediaPosition);
+  el.addEventListener('ratechange', updateMediaPosition);
   document.body.appendChild(el);
   globalAudioEl = el;
+  initMediaSessionHandlers();
   return el;
+}
+
+// ── 锁屏 / 通知栏 / 耳机的播放控制（Media Session）：显示歌名，能暂停、上一首、下一首、拖进度 ──
+function initMediaSessionHandlers() {
+  if (!('mediaSession' in navigator)) return;
+  const ms = navigator.mediaSession;
+  const set = (name, fn) => { try { ms.setActionHandler(name, fn); } catch (e) { /* 这个系统不支持该按钮，忽略 */ } };
+  set('play', () => { if (globalAudioEl) globalAudioEl.play().catch(() => {}); });
+  set('pause', () => { if (globalAudioEl) globalAudioEl.pause(); });
+  set('stop', () => { if (globalAudioEl) globalAudioEl.pause(); });
+  set('previoustrack', () => playPrevSongInLibrary());
+  set('nexttrack', () => playNextSongInLibrary());
+  set('seekbackward', (d) => { if (globalAudioEl) globalAudioEl.currentTime = Math.max(0, globalAudioEl.currentTime - ((d && d.seekOffset) || 10)); updateMediaPosition(); });
+  set('seekforward', (d) => { if (globalAudioEl) globalAudioEl.currentTime = Math.min(globalAudioEl.duration || Infinity, globalAudioEl.currentTime + ((d && d.seekOffset) || 10)); updateMediaPosition(); });
+  set('seekto', (d) => {
+    if (!globalAudioEl || !d || typeof d.seekTime !== 'number') return;
+    if (d.fastSeek && 'fastSeek' in globalAudioEl) globalAudioEl.fastSeek(d.seekTime); else globalAudioEl.currentTime = d.seekTime;
+    updateMediaPosition();
+  });
+}
+function updateMediaSession() {
+  if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+  try {
+    const title = String(musicPlayerSongTitle || '').trim();
+    if (!title) return;
+    const song = findSongLibEntryByTitle(title);
+    const sub = [song && song.songbook, '诗歌库'].filter(Boolean);
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: sub[0] === '诗歌库' ? '诗歌库' : sub[0],
+      album: '诗歌库',
+      artwork: [
+        { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+    });
+  } catch (e) { slDiag(e, 'updateMediaSession'); }
+}
+function updateMediaPosition() {
+  if (!('mediaSession' in navigator) || !globalAudioEl) return;
+  try {
+    navigator.mediaSession.playbackState = globalAudioEl.paused ? 'paused' : 'playing';
+    const d = globalAudioEl.duration;
+    if (navigator.mediaSession.setPositionState && isFinite(d) && d > 0) {
+      navigator.mediaSession.setPositionState({ duration: d, playbackRate: globalAudioEl.playbackRate || 1, position: Math.min(globalAudioEl.currentTime || 0, d) });
+    }
+  } catch (e) { /* 部分浏览器对进度状态较严格，忽略即可 */ }
 }
 
 function onGlobalAudioEnded() {

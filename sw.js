@@ -3,9 +3,10 @@
  *      2) 谱图优先读「离线歌谱包」里已缓存的图片（缓存由页面里的「离线与备份」下载）
  * 注意：不会拦截 Supabase 的接口请求，数据永远走网络；离线时页面自己读本机缓存。
  */
-const VER = 'v22';   // 改了页面文件就把它加一，旧缓存会在 activate 时清掉
+const VER = 'v26';   // 改了页面文件就把它加一，旧缓存会在 activate 时清掉
 const SHELL = 'songlib-shell-' + VER;     // 页面本身（index.html / styles.css / app.js …）
 const LIBS = 'songlib-libs-v1';           // CDN 上的库 / 图标字体（版本已锁定，缓存后不再变）
+const AUDIO = 'songlib-audio-v1';         // 「我的歌单」离线音频（由页面写入，这里只读；升级时不能删）
 const SCORES = 'songlib-scores-v1';       // 离线歌谱包的图片（由页面写入，这里只读；升级时不能删）
 const CDN_HOSTS = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com'];
 
@@ -43,7 +44,7 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    const keep = new Set([SHELL, LIBS, SCORES]);
+    const keep = new Set([SHELL, LIBS, SCORES, AUDIO]);
     const names = await caches.keys();
     await Promise.all(names.filter(n => n.startsWith('songlib-shell-') && !keep.has(n)).map(n => caches.delete(n)));
     await self.clients.claim();
@@ -93,16 +94,36 @@ async function scoreImage(req) {
   return fetch(req);
 }
 
+// 音频：离线音频包里有就直接用（要支持 Range，否则 iOS / 拖进度条会放不了）；没有就走网络
+async function audioFromCache(req) {
+  const cache = await caches.open(AUDIO);
+  const hit = await cache.match(req.url, { ignoreVary: true });
+  if (!hit) return fetch(req);
+  const range = req.headers.get('range');
+  const type = hit.headers.get('content-type') || 'audio/mpeg';
+  if (!range) return hit;
+  const blob = await hit.blob();
+  const size = blob.size;
+  const m = /bytes=(\d*)-(\d*)/.exec(range);
+  if (!m || (m[1] === '' && m[2] === '')) return new Response(blob, { status: 200, headers: { 'Content-Type': type, 'Content-Length': String(size), 'Accept-Ranges': 'bytes' } });
+  let start, end;
+  if (m[1] === '') { start = Math.max(0, size - parseInt(m[2], 10)); end = size - 1; }
+  else { start = parseInt(m[1], 10); end = m[2] === '' ? size - 1 : Math.min(parseInt(m[2], 10), size - 1); }
+  if (start >= size || start > end) return new Response(null, { status: 416, headers: { 'Content-Range': 'bytes */' + size } });
+  return new Response(blob.slice(start, end + 1), { status: 206, headers: { 'Content-Type': type, 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes' } });
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (!/^https?:$/.test(url.protocol)) return;
 
+  if (req.destination === 'audio' || req.destination === 'video') { e.respondWith(audioFromCache(req)); return; }
   if (req.mode === 'navigate' && url.origin === self.location.origin) { e.respondWith(networkFirst(req, true)); return; }
   if (req.destination === 'image' && url.origin === self.location.origin) { e.respondWith(networkFirst(req, false)); return; }   // 本站图标
   if (req.destination === 'image') { e.respondWith(scoreImage(req)); return; }
   if (CDN_HOSTS.includes(url.hostname)) { e.respondWith(cacheFirstLib(req)); return; }
   if (url.origin === self.location.origin && /\.(?:css|js|json|svg|png|ico|webmanifest)$/i.test(url.pathname)) { e.respondWith(networkFirst(req, false)); return; }
-  // 其他（Supabase 接口、音频、YouTube 等）一律不拦截
+  // 其他（Supabase 接口、YouTube 等）一律不拦截
 });

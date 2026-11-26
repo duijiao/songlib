@@ -52,7 +52,7 @@
         const s = lbSong();
         if (s && typeof quickPlaySongAudio === 'function') quickPlaySongAudio(s.title);
       });
-      close.parentNode.insertBefore(p, close);
+      const ttl = $('lightboxTitle'); (ttl && ttl.parentNode === bar) ? ttl.after(p) : bar.appendChild(p);   // 关闭在左、歌名居中、播放在右
     }
   }
 

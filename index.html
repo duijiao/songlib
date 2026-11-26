@@ -673,6 +673,7 @@
 
 <div class="lightbox" id="lightbox">
   <div class="lightbox-bar">
+    <button type="button" id="lightboxClose" class="lb-normal lb-close" onclick="closeLightbox()" title="关闭" aria-label="关闭"><i class="ti ti-x"></i><span>关闭</span></button>
     <div class="lightbox-title" id="lightboxTitle"></div>
     <button type="button" class="lb-normal lb-rename" id="lightboxRenameBtn" style="display:none" onclick="lightboxRenameSong()" title="修改歌名（管理员）"><i class="ti ti-pencil"></i></button>
     <div class="lightbox-acts">
@@ -680,7 +681,6 @@
       <button type="button" id="lightboxFixBtn" class="lb-normal" style="display:none" onclick="FX.open()" title="发现歌谱有错？告诉我们"><i class="ti ti-flag"></i><span>纠错</span></button>
       <button type="button" id="lightboxSave" class="lb-normal" onclick="downloadLightboxImage()" title="保存图片（有标记时保存带标记的图）"><i class="ti ti-download"></i><span>保存</span></button>
       <button type="button" id="lightboxOpen" class="lightbox-hide-m lb-normal" onclick="openLightboxOriginal()">新窗口原图</button>
-      <button type="button" id="lightboxClose" class="lb-normal" onclick="closeLightbox()">✕ 关闭</button>
       <div class="lb-markacts">
         <button type="button" id="lbUndo" onclick="mkUndo()" title="撤销"><i class="ti ti-arrow-back-up"></i></button>
         <button type="button" id="lbRedo" onclick="mkRedo()" title="重做"><i class="ti ti-arrow-forward-up"></i></button>

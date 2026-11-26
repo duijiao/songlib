@@ -6,6 +6,7 @@
   'use strict';
 
   const OL_CACHE = 'songlib-scores-v1';            // 要和 sw.js 里的 SCORES 同名
+  const AUDIO_CACHE = 'songlib-audio-v1';          // 要和 sw.js 里的 AUDIO 同名
   const LS_PACKS = 'songLibOfflinePacks';
   const $ = (id) => document.getElementById(id);
 
@@ -51,6 +52,18 @@
     songLibrary.forEach(s => { if (songLibFavoriteIds.has(s.id)) entryUrls(s).forEach(u => out.add(u)); });
     return [...out];
   }
+  // 「我的歌单」里每首歌的第一条音频（就是点播放时实际会播的那条）
+  function playlistAudioUrls() {
+    const out = new Set();
+    songLibPlaylistSongs().all.forEach(s => {
+      const l = getAudioLinksForTitle(s.title)[0];
+      const u = l && getSafeExternalUrl(l.url);
+      if (u) out.add(u);
+    });
+    return [...out];
+  }
+  const cacheNameOf = (type) => type === 'audio' ? AUDIO_CACHE : OL_CACHE;
+  const unitOf = (type) => type === 'audio' ? '首' : '张谱';
   function urlsOf(type, key) { return type === 'week' ? weekUrls(key) : type === 'book' ? bookUrls(key) : favUrls(); }
 
   function buildRows() {
@@ -69,14 +82,16 @@
       const n = songLibrary.filter(s => s.songbook === name).length;
       list.push({ id: 'book:' + name, type: 'book', key: name, group: '按诗歌本', label: name, sub: `${n} 首`, urls });
     });
+    const au = playlistAudioUrls();
+    if (au.length) list.push({ id: 'audio:playlist', type: 'audio', key: '', group: '我的歌单（音频）', label: '我的歌单 · 离线听歌', sub: `${songLibPlaylistSongs().all.length} 首歌`, urls: au });
     const fu = favUrls();
     if (fu.length) list.push({ id: 'fav', type: 'fav', key: '', group: '我的收藏', label: '我的收藏', sub: `${songLibrary.filter(s => songLibFavoriteIds.has(s.id)).length} 首`, urls: fu });
     return list;
   }
 
-  async function cachedCount(urls) {
+  async function cachedCount(urls, name) {
     if (!('caches' in window)) return 0;
-    const cache = await caches.open(OL_CACHE);
+    const cache = await caches.open(name || OL_CACHE);
     let n = 0;
     for (let i = 0; i < urls.length; i += 20) {
       const part = await Promise.all(urls.slice(i, i + 20).map(u => cache.match(u).then(Boolean, () => false)));
@@ -86,7 +101,13 @@
   }
 
   // ─────────── 下载 ───────────
-  async function fetchPut(cache, u) {
+  async function fetchPut(cache, u, corsOnly) {
+    if (corsOnly) {   // 音频不能用不透明响应：拖进度条要读文件大小，所以必须是允许跨域的地址
+      const r = await fetch(u, { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' });
+      if (!r.ok) { const e = new Error('HTTP ' + r.status); e.http = true; throw e; }
+      await cache.put(u, r);
+      return 'cors';
+    }
     try {
       const r = await fetch(u, { mode: 'cors', credentials: 'omit', referrerPolicy: 'no-referrer' });
       if (!r.ok) { const e = new Error('HTTP ' + r.status); e.http = true; throw e; }
@@ -114,11 +135,12 @@
     if (!('caches' in window)) { showToast('这个浏览器不支持离线缓存'); return; }
     if (!navigator.onLine) { showToast('现在没有网络，连上网再下载'); return; }
     const urls = row.urls.slice();
-    if (!urls.length) { showToast('这个谱包里没有可缓存的谱图'); return; }
+    if (!urls.length) { showToast(row.type === 'audio' ? '歌单里没有可缓存的音频' : '这个谱包里没有可缓存的谱图'); return; }
+    const isAudio = row.type === 'audio', unit = unitOf(row.type);
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { slDiag(e, 'download'); }   // 请求「别在空间紧张时清掉我」
     busy = { idx: i, cancel: false };
     renderBody(true);
-    const cache = await caches.open(OL_CACHE);
+    const cache = await caches.open(cacheNameOf(row.type));
     const queue = urls.slice();
     let done = 0, fail = 0, opaque = 0, quota = false;
     const total = urls.length;
@@ -129,8 +151,8 @@
           if (await cache.match(u)) { done++; }
           else {
             let kind;
-            try { kind = await fetchPut(cache, u); }
-            catch (e1) { if (e1 && e1.name === 'QuotaExceededError') throw e1; kind = await fetchPut(cache, u); }   // 失败自动重试一次
+            try { kind = await fetchPut(cache, u, isAudio); }
+            catch (e1) { if (e1 && e1.name === 'QuotaExceededError') throw e1; kind = await fetchPut(cache, u, isAudio); }   // 失败自动重试一次
             if (kind === 'opaque') opaque++;
             done++;
           }
@@ -141,26 +163,27 @@
         setProg(i, done + fail, total, `下载中 ${done + fail}/${total}`);
       }
     }
-    await Promise.all(Array.from({ length: 4 }, worker));
+    await Promise.all(Array.from({ length: isAudio ? 2 : 4 }, worker));
     const cancelled = busy.cancel && !quota;
     busy = null;
     packs[row.id] = { type: row.type, key: row.key, label: row.label, urls, at: Date.now() };
     savePacks();
     await render();
     if (quota) showToast('⚠️ 手机存储空间不够了，先清理一些再试', 4000);
-    else if (cancelled) showToast('已取消，已下载的部分可以离线看');
-    else if (fail) showToast(`✅ 已缓存 ${done} 张，${fail} 张失败（可点「更新」补齐）`, 4000);
+    else if (cancelled) showToast(isAudio ? '已取消，已下载的歌可以离线听' : '已取消，已下载的部分可以离线看');
+    else if (fail) showToast(`✅ 已缓存 ${done} ${unit}，${fail} ${unit}失败（${isAudio ? '可能是音频地址不支持缓存或网络不稳，' : ''}可点「更新」补齐）`, 4500);
+    else if (isAudio) showToast(`✅ 已缓存 ${done} 首歌，没信号也能听`, 3500);
     else showToast(`✅ 已缓存 ${done} 张谱${opaque ? '（部分来自外部图床，占用空间较大）' : ''}，没信号也能看`, 3500);
   }
 
   async function remove(i) {
     const row = rows[i]; if (!row || busy) return;
-    if (!(await slConfirm(`删除「${row.label}」的离线谱图？删除后没信号就看不到这些谱了。`))) return;
-    const cache = await caches.open(OL_CACHE);
+    if (!(await slConfirm(row.type === 'audio' ? `删除「${row.label}」的离线音频？删除后没信号就听不了这些歌了。` : `删除「${row.label}」的离线谱图？删除后没信号就看不到这些谱了。`))) return;
+    const cache = await caches.open(cacheNameOf(row.type));
     const mine = new Set((packs[row.id] && packs[row.id].urls) || row.urls);
     delete packs[row.id];
     const keep = new Set();
-    Object.values(packs).forEach(p => (p.urls || []).forEach(u => keep.add(u)));   // 别的谱包还在用的图不能删
+    Object.values(packs).filter(p => cacheNameOf(p.type) === cacheNameOf(row.type)).forEach(p => (p.urls || []).forEach(u => keep.add(u)));   // 别的谱包还在用的图不能删
     await Promise.all([...mine].filter(u => !keep.has(u)).map(u => cache.delete(u)));
     savePacks();
     await render();
@@ -184,7 +207,7 @@
     const body = $('olBody'); if (!body) return;
     const groups = [];
     rows.forEach((r, i) => { let g = groups.find(x => x.name === r.group); if (!g) { g = { name: r.group, items: [] }; groups.push(g); } g.items.push(i); });
-    if (!rows.length) { body.innerHTML = '<div class="ol-empty">还没有带谱图的诗歌可以缓存。先给每周排班选歌、或给诗歌本里的歌上传谱子。</div>'; return; }
+    if (!rows.length) { body.innerHTML = '<div class="ol-empty">还没有带谱图或音频的诗歌可以缓存。先给每周排班选歌、给诗歌本里的歌上传谱子，或把有音频的歌加入「我的歌单」。</div>'; return; }
     body.innerHTML = groups.map(g => `<div class="ol-sec-title">${escapeHtml(g.name)}</div>` + g.items.map(i => {
       const r = rows[i];
       const isBusy = busy && busy.idx === i;
@@ -195,13 +218,13 @@
       else if (total && c >= total) { st = '✅ 已离线可用'; btn = `<button class="ol-btn ghost" onclick="OL.tap(${i})">重新检查</button>`; del = `<button class="ol-btn ghost" onclick="OL.del(${i})" aria-label="删除">删除</button>`; }
       else if (c > 0) { st = `已缓存 ${c}/${total}，有新谱或缺图`; btn = `<button class="ol-btn" onclick="OL.tap(${i})">更新</button>`; del = `<button class="ol-btn ghost" onclick="OL.del(${i})" aria-label="删除">删除</button>`; }
       else { st = '未下载'; btn = `<button class="ol-btn" onclick="OL.tap(${i})">下载</button>`; }
-      return `<div class="ol-row" data-i="${i}"><div class="ol-info"><div class="ol-name">${escapeHtml(r.label)}</div><div class="ol-sub">${escapeHtml(r.sub)} · ${total} 张谱 · <span class="ol-st">${st}</span></div><div class="ol-bar"><i style="width:${isBusy ? 0 : (total ? Math.round(c / total * 100) : 0)}%"></i></div></div><div class="ol-acts">${btn}${del}</div></div>`;
+      return `<div class="ol-row" data-i="${i}"><div class="ol-info"><div class="ol-name">${escapeHtml(r.label)}</div><div class="ol-sub">${escapeHtml(r.sub)} · ${total} ${unitOf(r.type)} · <span class="ol-st">${st}</span></div><div class="ol-bar"><i style="width:${isBusy ? 0 : (total ? Math.round(c / total * 100) : 0)}%"></i></div></div><div class="ol-acts">${btn}${del}</div></div>`;
     }).join('')).join('');
   }
 
   async function render() {
     rows = buildRows();
-    for (const r of rows) r.cached = await cachedCount(r.urls);
+    for (const r of rows) r.cached = await cachedCount(r.urls, cacheNameOf(r.type));
     let est = null;
     try { if (navigator.storage && navigator.storage.estimate) est = await navigator.storage.estimate(); } catch (e) { slDiag(e, 'render'); }
     const env = $('olEnv'); if (env) env.innerHTML = envHtml(est);
@@ -337,7 +360,7 @@
 
   // ─────────── 网络状态 ───────────
   function netState() { document.documentElement.classList.toggle('is-offline', !navigator.onLine); }
-  window.addEventListener('offline', () => { netState(); showToast('📴 已离线：可以看已缓存的歌谱', 3500); });
+  window.addEventListener('offline', () => { netState(); showToast('📴 已离线：可以看已缓存的歌谱、听已缓存的歌', 3500); });
   window.addEventListener('online', () => { netState(); showToast('✅ 网络已恢复'); });
   netState();
 

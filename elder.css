@@ -109,17 +109,19 @@ html.elder #lightboxOpen,
 html.elder #lightboxRenameBtn,
 html.elder #lightboxFixBtn,
 html.elder #lightboxTools { display: none !important; }
-html.elder .lightbox-title { font-size: calc(22px * var(--es, 1)); font-weight: 700; white-space: normal; padding-left: 6px; }
+html.elder .lightbox-title { font-size: calc(22px * var(--es, 1)); font-weight: 700; white-space: normal; }
 html.elder #lightboxClose {
-  font-size: 22px; font-weight: 700; padding: 12px 24px; border-radius: 14px;
+  font-size: 22px; font-weight: 700; padding: 0 20px; width: auto; height: 52px; border-radius: 14px;
   background: #fff; color: #111; border: none;
 }
+html.elder #lightboxClose span { display: inline !important; }
+html.elder .lightbox-title { text-align: center; display: block; }
 html.elder .lightbox-nav { width: 66px; height: 110px; font-size: 38px; background: rgba(255,255,255,0.3); }
 html.elder .lightbox-nav.prev { left: 6px; }
 html.elder .lightbox-nav.next { right: 6px; }
 
 /* ── 看谱页顶部的「听歌 / 暂停」 ── */
-.elder-lb-play { display: none; }
+.elder-lb-play, .lightbox-bar .elder-lb-play { display: none; }
 html.elder .elder-lb-play.show {
   display: inline-flex; align-items: center; gap: 8px; flex: none; font-family: inherit;
   font-size: calc(22px * var(--es, 1)); font-weight: 700; padding: 12px 22px; border-radius: 14px;
