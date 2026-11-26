@@ -390,7 +390,8 @@ input[type="file"] { display: none; }
 }
 .song-lib-weeksong:hover { color: var(--primary); }
 .song-lib-page.tab-recent:not(.ds-mode) #songLibViewSwitch,
-#songLibraryOverlay.tab-recent:not(.ds-mode) #songLibViewSwitch { display: none; }
+#songLibraryOverlay.tab-recent:not(.ds-mode) #songLibViewSwitch,
+#songLibraryOverlay.tab-playlist:not(.ds-mode) #songLibViewSwitch { display: none; }
 .song-lib-tabs { display: flex; gap: 4px; padding: 10px 16px 0; flex-shrink: 0; border-bottom: 1px solid var(--border-soft); }
 .song-lib-tab {
   flex: 1; text-align: center; background: none; border: none; font-family: inherit;
@@ -1665,3 +1666,115 @@ body:has(.floating-audio-bar.show) .ds-promo { bottom: 150px; }
 .sl-totop.show { opacity: 1; transform: none; pointer-events: auto; }
 .sl-totop:active { background: var(--primary-light); }
 @media (prefers-reduced-motion: reduce) { .sl-totop, .sl-ptr.anim { transition: none; } }
+
+/* ── 我的歌单：本周的歌小标记 ── */
+.song-lib-plbadge {
+  display: inline-block; font-size: 11px; font-weight: 700; line-height: 1; padding: 3px 7px; border-radius: 999px;
+  background: var(--primary); color: #fff; vertical-align: middle; white-space: nowrap;
+}
+
+/* ── 各处的「加入歌单」入口 ── */
+.song-lib-detail-pl-row { display: flex; justify-content: center; margin: 8px 0 2px; }
+.song-lib-detail-plbtn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; border-radius: 999px; font-family: inherit;
+  border: 1.5px solid var(--primary); background: #fff; color: var(--primary); font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.song-lib-detail-plbtn i { font-size: 18px; }
+.song-lib-detail-plbtn.week { background: var(--primary-light); }
+.song-lib-detail-plbtn.active { background: var(--primary); color: #fff; }
+.floating-audio-bar-btns .fab-pl { font-size: 19px; }
+.floating-audio-bar-btns .fab-pl.active { color: var(--primary); }
+.np-pl-btn.active { color: var(--primary); }
+
+/* ── 我的歌单列表（仿网易云 / QQ 音乐）── */
+.song-lib-grid.view-playlist { display: block; padding: 0 2px 24px; }
+/* 顶部卡片：背景图可自定义，默认是自带的绿色渐变图 */
+.pl-card {
+  position: relative; margin: 2px 0 6px; padding: 18px 16px 16px; border-radius: 28px; overflow: hidden;
+  background-color: #eaf8ef; background-size: cover; background-position: center; background-repeat: no-repeat;
+  box-shadow: 0 6px 20px rgba(29,158,117,0.12), 0 1px 3px rgba(28,26,20,0.06);
+}
+.pl-bg-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 2; width: 32px; height: 32px; border: none; border-radius: 50%;
+  background: rgba(255,255,255,0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  color: var(--text-2); font-size: 17px; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pl-bg-btn:active { background: rgba(255,255,255,0.85); }
+.pl-head { display: flex; align-items: center; gap: 16px; padding: 0 28px 16px 0; }
+.pl-cover {
+  position: relative; flex: none; width: 80px; height: 80px; border-radius: 22px; color: #fff; font-size: 40px;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 14px rgba(40,140,90,0.28);
+  background: linear-gradient(145deg, #6cc58d 0%, #3f9d68 100%);
+}
+.pl-head-info { min-width: 0; }
+.pl-head-title { font-size: 22px; font-weight: 800; color: var(--text-1); letter-spacing: 0.5px; }
+.pl-head-sub { font-size: 13px; color: #6b7a72; margin-top: 6px; line-height: 1.5; }
+.pl-actions { display: flex; gap: 10px; }
+.pl-playall {
+  flex: 1; height: 50px; border-radius: 25px; border: none; color: #fff; font-family: inherit;
+  background: linear-gradient(180deg, #5fbb85 0%, #3f9d68 100%); box-shadow: 0 4px 12px rgba(63,157,104,0.32);
+  font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+}
+.pl-playall i { font-size: 20px; }
+.pl-playall span { font-size: 12px; font-weight: 500; opacity: 0.9; margin-left: 4px; }
+.pl-playall:active { filter: brightness(0.94); }
+.pl-lookall {
+  height: 50px; padding: 0 22px; border-radius: 25px; border: none; background: rgba(255,255,255,0.95); color: var(--text-1);
+  box-shadow: 0 3px 10px rgba(28,26,20,0.08); font-family: inherit; font-size: 15.5px; font-weight: 600;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.pl-lookall i { font-size: 20px; }
+.pl-group { display: flex; align-items: baseline; gap: 8px; padding: 14px 4px 8px; font-size: 14px; font-weight: 700; color: var(--text-1); }
+.pl-group small { font-size: 12px; font-weight: 500; color: var(--text-4); }
+.pl-list { background: #fff; border: 1px solid var(--border-soft); border-radius: 16px; overflow: hidden; }
+.pl-row {
+  display: flex; align-items: center; gap: 10px; min-height: 62px; padding: 8px 4px 8px 14px;
+  border-bottom: 1px solid var(--bg-subtle); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.pl-row:last-child { border-bottom: none; }
+.pl-row:active { background: var(--bg-subtle); }
+.pl-idx { flex: none; width: 26px; text-align: center; font-size: 15px; color: var(--text-4); font-variant-numeric: tabular-nums; }
+.pl-info { flex: 1; min-width: 0; }
+.pl-title { font-size: 16px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-sub { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; color: var(--text-3); min-width: 0; }
+.pl-sub:empty { display: none; }
+.pl-sub-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-btn {
+  flex: none; width: 40px; height: 40px; border: none; border-radius: 50%; background: none; color: var(--text-3);
+  font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.pl-btn:active { background: var(--bg-subtle); }
+.pl-play { color: var(--primary); }
+/* 正在播放：序号换成跳动的音柱，歌名变绿 */
+.pl-eq { display: none; height: 15px; align-items: flex-end; justify-content: center; gap: 2px; }
+.pl-eq i { width: 3px; border-radius: 1px; background: var(--primary); animation: plEq 0.9s ease-in-out infinite; }
+.pl-eq i:nth-child(1) { height: 60%; animation-delay: -0.2s; }
+.pl-eq i:nth-child(2) { height: 100%; animation-delay: -0.5s; }
+.pl-eq i:nth-child(3) { height: 40%; animation-delay: -0.8s; }
+@keyframes plEq { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+.pl-eq i { transform-origin: bottom; }
+.pl-row.current .pl-title { color: var(--primary); }
+.pl-row.current .pl-idx { color: var(--primary); }
+.pl-row.playing .pl-idx span { display: none; }
+.pl-row.playing .pl-eq { display: flex; }
+@media (prefers-reduced-motion: reduce) { .pl-eq i { animation: none; } }
+/* 「⋯」菜单 */
+.pl-sheet {
+  width: 100%; max-width: 520px; background: #fff; border-radius: 20px 20px 0 0;
+  padding: 8px 16px calc(14px + env(safe-area-inset-bottom));
+}
+.pl-sheet-title { font-size: 16px; font-weight: 700; color: var(--text-1); text-align: center; padding: 6px 0 10px; border-bottom: 1px solid var(--bg-subtle); }
+.pl-sheet-item {
+  width: 100%; display: flex; align-items: center; gap: 14px; padding: 15px 6px; border: none; background: none;
+  font-family: inherit; font-size: 16px; color: var(--text-1); cursor: pointer; text-align: left; border-bottom: 1px solid var(--bg-subtle);
+}
+.pl-sheet-item i { font-size: 22px; color: var(--text-2); }
+.pl-sheet-item.danger, .pl-sheet-item.danger i { color: #d4574f; }
+.pl-sheet-cancel {
+  width: 100%; margin-top: 10px; height: 46px; border: none; border-radius: 23px; background: var(--bg-subtle);
+  font-family: inherit; font-size: 16px; font-weight: 600; color: var(--text-2); cursor: pointer;
+}
+/* 歌单页：顶部卡片里已有「共 N 首」，所以不再显示工具栏（数量 / 筛选 / 批量） */
+#songLibraryOverlay.tab-playlist:not(.ds-mode) #songLibToolbar { display: none; }
+body:has(.floating-audio-bar.show) .song-lib-grid.view-playlist { padding-bottom: 170px; }

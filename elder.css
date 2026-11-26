@@ -20,8 +20,8 @@ html.elder .elder-btn {
 html.elder .elder-btn i { font-size: 22px; }
 html.elder .elder-btn span { display: inline; }
 
-/* ── 标签：只留 首页 / 最近使用 / 我的收藏（隐藏「诗歌本」），字更大 ── */
-html.elder .song-lib-tab { font-size: calc(21px * var(--es, 1)); padding: 14px 4px 14px; border-bottom-width: 4px; }
+/* ── 标签：只留 首页 / 最近使用 / 我的歌单 / 我的收藏（隐藏「诗歌本」），字更大 ── */
+html.elder .song-lib-tab { font-size: calc(19px * min(var(--es, 1), 1.1)); padding: 14px 2px 14px; border-bottom-width: 4px; white-space: nowrap; }
 html.elder .song-lib-tab:nth-child(3) { display: none; }   /* 诗歌本 */
 
 /* ── 首页上所有「次要」的东西全部藏起来 ── */
@@ -84,9 +84,21 @@ html.elder .song-lib-card-tags,
 html.elder .song-lib-card-meta,
 html.elder .song-lib-category-badge,
 html.elder .song-lib-key-count-badge,
-html.elder .song-lib-card-play-btn,
 html.elder .song-lib-selmark { display: none !important; }
+html.elder .song-lib-card-actions, html.elder .song-lib-wfoot-btns { display: flex; align-items: center; gap: 8px; }
 html.elder .song-lib-card-fav-btn { width: 58px; height: 58px; font-size: 32px; }
+
+/* ── 播放：只有带音频的歌才显示；绿色大圆键，播放中变成「暂停」 ── */
+html.elder .song-lib-card-play-btn.no-audio { display: none !important; }
+html.elder .song-lib-card-play-btn:not(.no-audio) {
+  display: inline-flex !important; align-items: center; justify-content: center; flex: none;
+  width: 58px; height: 58px; border-radius: 50%; border: 2px solid var(--primary);
+  background: var(--primary); color: #fff; font-size: 30px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+html.elder .song-lib-card-play-btn:not(.no-audio) i { font-size: 30px; color: #fff; }
+html.elder .song-lib-card-play-btn:not(.no-audio):active { background: var(--primary-dark); }
+html.elder .song-lib-card-play-btn.playing { background: #fff; }
+html.elder .song-lib-card-play-btn.playing i { color: var(--primary); }
 html.elder .song-lib-empty { font-size: calc(21px * var(--es, 1)); line-height: 1.7; padding: 40px 12px; }
 html.elder .song-lib-empty i { font-size: 48px; }
 
@@ -95,6 +107,7 @@ html.elder #lightboxLyricsBtn,
 html.elder #lightboxSave,
 html.elder #lightboxOpen,
 html.elder #lightboxRenameBtn,
+html.elder #lightboxFixBtn,
 html.elder #lightboxTools { display: none !important; }
 html.elder .lightbox-title { font-size: calc(22px * var(--es, 1)); font-weight: 700; white-space: normal; padding-left: 6px; }
 html.elder #lightboxClose {
@@ -104,3 +117,56 @@ html.elder #lightboxClose {
 html.elder .lightbox-nav { width: 66px; height: 110px; font-size: 38px; background: rgba(255,255,255,0.3); }
 html.elder .lightbox-nav.prev { left: 6px; }
 html.elder .lightbox-nav.next { right: 6px; }
+
+/* ── 看谱页顶部的「听歌 / 暂停」 ── */
+.elder-lb-play { display: none; }
+html.elder .elder-lb-play.show {
+  display: inline-flex; align-items: center; gap: 8px; flex: none; font-family: inherit;
+  font-size: calc(22px * var(--es, 1)); font-weight: 700; padding: 12px 22px; border-radius: 14px;
+  border: none; background: var(--primary); color: #fff; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+html.elder .elder-lb-play i { font-size: 26px; }
+html.elder .elder-lb-play.playing { background: #fff; color: var(--primary); }
+
+/* ── 底部播放条：放大，只留 标题 / 上一首 / 播放暂停 / 下一首 / 关闭 ── */
+html.elder .floating-audio-bar {
+  width: calc(100% - 20px); max-width: 540px; padding: 14px 16px 16px; border-radius: 22px; gap: 10px;
+  bottom: max(12px, env(safe-area-inset-bottom)); border: 2px solid var(--primary);
+}
+html.elder .floating-audio-bar-icon,
+html.elder .floating-audio-bar-sub,
+html.elder .floating-audio-bar-modes { display: none !important; }
+html.elder .floating-audio-bar-info { pointer-events: none; }   /* 不要点开复杂的播放页 */
+html.elder .floating-audio-bar-title { font-size: calc(22px * var(--es, 1)); font-weight: 700; white-space: normal; line-height: 1.35; }
+html.elder .floating-audio-bar-btns { gap: 6px; }
+html.elder .floating-audio-bar-btns button { width: 54px; height: 54px; font-size: 28px; border-radius: 50%; }
+html.elder .floating-audio-bar-btns .fab-play { width: 68px; height: 68px; font-size: 34px; background: var(--primary); color: #fff; }
+html.elder .floating-audio-bar-btns .fab-close { font-size: 24px; color: var(--text-2); background: var(--bg-subtle); margin-left: 4px; }
+html.elder .floating-audio-bar-progress { height: 8px; border-radius: 4px; }
+html.elder:has(.floating-audio-bar.show) .song-lib-main { padding-bottom: 200px; }
+
+/* ── 我的歌单（长辈版）：字大、播放键大、去掉「⋯」和多余信息 ── */
+html.elder .floating-audio-bar-btns .fab-pl,
+html.elder .pl-more,
+html.elder .pl-sub-t,
+html.elder .pl-playall span,
+html.elder .pl-group small { display: none !important; }
+html.elder .song-lib-grid.view-playlist { padding: 0 0 24px; }
+html.elder .pl-card { padding: 18px 14px 16px; border-radius: 26px; }
+html.elder .pl-bg-btn { display: none; }
+html.elder .pl-head { padding-right: 0; }
+html.elder .pl-cover { width: 72px; height: 72px; font-size: 34px; border-radius: 20px; }
+html.elder .pl-head-title { font-size: calc(26px * var(--es, 1)); }
+html.elder .pl-head-sub { font-size: calc(17px * var(--es, 1)); }
+html.elder .pl-playall { height: 60px; border-radius: 30px; font-size: calc(23px * var(--es, 1)); }
+html.elder .pl-playall i { font-size: 28px; }
+html.elder .pl-lookall { height: 60px; border-radius: 30px; font-size: calc(21px * var(--es, 1)); padding: 0 22px; }
+html.elder .pl-group { font-size: calc(20px * var(--es, 1)); padding: 18px 4px 10px; }
+html.elder .pl-row { min-height: 92px; gap: 12px; padding: 12px 10px 12px 14px; }
+html.elder .pl-idx { width: 30px; font-size: calc(19px * var(--es, 1)); }
+html.elder .pl-title { font-size: calc(24px * var(--es, 1)); font-weight: 700; white-space: normal; line-height: 1.4; }
+html.elder .pl-sub { margin-top: 6px; }
+html.elder .song-lib-plbadge { font-size: calc(15px * var(--es, 1)); padding: 4px 10px; }
+html.elder .pl-btn.pl-play { width: 58px; height: 58px; background: var(--primary); color: #fff; font-size: 30px; }
+html.elder .pl-btn.pl-play:active { background: var(--primary-dark); }
+html.elder .pl-row.playing .pl-btn.pl-play { background: #fff; color: var(--primary); border: 2px solid var(--primary); }

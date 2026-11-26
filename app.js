@@ -166,6 +166,229 @@ function isSongLibFavorite(id) {
   return songLibFavoriteIds.has(id);
 }
 
+// ── 我的歌单：本周选好的歌自动在里面 + 自己手动加入的歌（只存在这台设备，和「我的收藏」一样）──
+const LS_SONG_LIB_PLAYLIST = 'churchSongLibPlaylistLocal';
+let songLibPlaylistIds = [];   // 手动加入的歌曲 id，按加入顺序
+function loadSongLibPlaylist() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_SONG_LIB_PLAYLIST) || '[]');
+    songLibPlaylistIds = Array.isArray(raw) ? [...new Set(raw.filter(x => typeof x === 'string'))] : [];
+  } catch (e) { songLibPlaylistIds = []; }
+}
+function persistSongLibPlaylist() {
+  try { localStorage.setItem(LS_SONG_LIB_PLAYLIST, JSON.stringify(songLibPlaylistIds)); } catch (e) { slDiag(e, 'persistSongLibPlaylist'); }
+}
+// 本周已选好的歌（按选歌顺序，对应到诗歌库里的歌；库里没有的跳过）
+function songLibWeekSongs() {
+  let arr = [];
+  try { arr = (songData[songLibCurWeekKey()] || []); } catch (e) { return []; }
+  const seen = new Set(), out = [];
+  arr.forEach(it => {
+    if (!it || !it.title) return;
+    const song = (it.songId && songLibrary.find(x => x.id === it.songId)) || findSongLibEntryByTitle(it.title);
+    if (song && !seen.has(song.id)) { seen.add(song.id); out.push(song); }
+  });
+  return out;
+}
+// 歌单 = 本周的歌（自动，排最前）+ 手动加入的歌
+function songLibPlaylistSongs() {
+  const week = songLibWeekSongs(), seen = new Set(week.map(x => x.id));
+  const mine = [];
+  songLibPlaylistIds.forEach(id => { const song = songLibrary.find(x => x.id === id); if (song && !seen.has(id)) { seen.add(id); mine.push(song); } });
+  return { week, mine, all: week.concat(mine) };
+}
+function isInSongLibPlaylist(id) { return songLibPlaylistIds.includes(id); }
+function toggleSongLibPlaylist(id) {
+  const song = songLibrary.find(x => x.id === id); if (!song) return;
+  const i = songLibPlaylistIds.indexOf(id);
+  const inWeek = songLibWeekSongs().some(x => x.id === id);
+  if (i >= 0) { songLibPlaylistIds.splice(i, 1); showToast(inWeek ? '已取消保留（本周的歌仍会自动在歌单里）' : '已移出我的歌单'); }
+  else { songLibPlaylistIds.push(id); showToast(inWeek ? '已保留到我的歌单（过了本周也还在）' : '已加入我的歌单'); }
+  persistSongLibPlaylist();
+  if (songLibTab === 'playlist') renderSongLibraryGrid();
+  songLibSyncPlButtons();
+}
+function toggleSongLibPlaylistFromDetail() { if (songLibDetailCurrent) toggleSongLibPlaylist(songLibDetailCurrent.id); }
+let _slWeekIdSet = null;
+function songLibWeekIdSet(fresh) {
+  if (!_slWeekIdSet || fresh) _slWeekIdSet = new Set(songLibWeekSongs().map(x => x.id));
+  return _slWeekIdSet;
+}
+// 某首歌在歌单里的状态：'mine'（我加入的）| 'week'（本周自动）| ''（不在）
+function songLibPlState(id, fresh) {
+  if (isInSongLibPlaylist(id)) return 'mine';
+  return songLibWeekIdSet(fresh).has(id) ? 'week' : '';
+}
+function renderSongLibDetailPlBtn() {
+  const btn = document.getElementById('songLibDetailPlBtn'), s = songLibDetailCurrent;
+  if (!btn || !s) return;
+  const st = songLibPlState(s.id, true);
+  btn.classList.toggle('active', st === 'mine');
+  btn.classList.toggle('week', st === 'week');
+  btn.innerHTML = st === 'mine' ? '<i class="ti ti-playlist-add-check"></i>已在我的歌单'
+    : st === 'week' ? '<i class="ti ti-calendar-star"></i>本周歌单中 · 点击保留'
+    : '<i class="ti ti-playlist-add"></i>加入我的歌单';
+  btn.title = st === 'mine' ? '点击移出我的歌单' : st === 'week' ? '本周的歌会自动在歌单里，点一下可保留到以后' : '加入我的歌单';
+}
+// 把所有位置上的「歌单」按钮状态一次刷新：卡片、详情页、悬浮播放条、播放页
+function songLibSyncPlButtons() {
+  try {
+    const wk = songLibWeekIdSet(true);
+    renderSongLibDetailPlBtn();
+    const cur = (typeof musicPlayerSongTitle !== 'undefined' && musicPlayerSongTitle) ? findSongLibEntryByTitle(musicPlayerSongTitle) : null;
+    const fb = document.getElementById('floatingAudioPlBtn');
+    if (fb) {
+      const on = !!cur && (isInSongLibPlaylist(cur.id) || wk.has(cur.id));
+      fb.classList.toggle('active', on); fb.style.display = cur ? '' : 'none';
+      fb.innerHTML = `<i class="ti ${on ? 'ti-playlist-add-check' : 'ti-playlist-add'}"></i>`;
+      fb.title = on ? '已在歌单（点击' + (cur && isInSongLibPlaylist(cur.id) ? '移出' : '保留') + '）' : '加入我的歌单';
+    }
+    const ns = (typeof nowPlayingSong !== 'undefined') ? nowPlayingSong : null;
+    const nb = document.getElementById('npPlBtn'), nm = document.getElementById('npMorePlBtn');
+    if (ns) {
+      const st = songLibPlState(ns.id);
+      if (nb) { nb.classList.toggle('active', !!st); nb.innerHTML = `<i class="ti ${st ? 'ti-playlist-add-check' : 'ti-playlist-add'}"></i>`; }
+      if (nm) nm.innerHTML = `<i class="ti ${st ? 'ti-playlist-add-check' : 'ti-playlist-add'}"></i>${st === 'mine' ? '移出我的歌单' : st === 'week' ? '保留到我的歌单' : '加入我的歌单'}`;
+    }
+  } catch (e) { slDiag(e, 'songLibSyncPlButtons'); }
+}
+function floatingAudioTogglePlaylist() {
+  const cur = findSongLibEntryByTitle(musicPlayerSongTitle);
+  if (!cur) { showToast('没有找到这首歌'); return; }
+  toggleSongLibPlaylist(cur.id);
+}
+function toggleNowPlayingPlaylist() { if (nowPlayingSong) toggleSongLibPlaylist(nowPlayingSong.id); }
+
+// ── 「我的歌单」列表（仿网易云 / QQ 音乐：序号 + 歌名 + 副标题 + 播放 + 更多）──
+function songLibNowTitleKey() {
+  try { return (globalAudioEl && globalAudioEl.src && loadedAudioLinkId) ? String(musicPlayerSongTitle || '').trim().toLowerCase() : ''; } catch (e) { return ''; }
+}
+function songLibSyncPlaylistRows() {
+  if (songLibTab !== 'playlist') return;
+  const cur = songLibNowTitleKey(), playing = !!(globalAudioEl && !globalAudioEl.paused && cur);
+  document.querySelectorAll('.pl-row').forEach(r => {
+    const on = !!cur && r.dataset.title === cur;
+    r.classList.toggle('current', on); r.classList.toggle('playing', on && playing);
+    const i = r.querySelector('.pl-play i'); if (i) i.className = 'ti ' + (on && playing ? 'ti-player-pause' : 'ti-player-play');
+  });
+}
+function songLibPlRowHtml(s, n, isWeek) {
+  const hasAudio = getAudioLinksForTitle(s.title).length > 0;
+  const safeTitle = escapeHtml(s.title).replace(/'/g, "\\'");
+  const sub = [];
+  if (s.band) sub.push(escapeHtml(s.band));
+  if (s.songbook) sub.push(escapeHtml(s.songbook));
+  const keys = (s.keys || []).map(k => k.label).filter(Boolean);
+  if (keys.length) sub.push('调 ' + escapeHtml(keys.slice(0, 3).join(' / ')));
+  return `<div class="pl-row${hasAudio ? '' : ' no-audio'}" data-sid="${s.id}" data-title="${escapeHtml(s.title.trim().toLowerCase())}" onclick="openSongLibDetail('${s.id}')">
+    <div class="pl-idx"><span>${n}</span><b class="pl-eq"><i></i><i></i><i></i></b></div>
+    <div class="pl-info">
+      <div class="pl-title">${highlightKeyword(s.title, songLibSearchKeyword)}</div>
+      <div class="pl-sub">${isWeek ? '<span class="song-lib-plbadge">本周</span>' : ''}${sub.length ? '<span class="pl-sub-t">' + sub.join(' · ') + '</span>' : ''}</div>
+    </div>
+    ${hasAudio ? `<button type="button" class="pl-btn pl-play" onclick="event.stopPropagation();songLibPlRowPlay('${safeTitle}')" title="播放" aria-label="播放"><i class="ti ti-player-play"></i></button>` : ''}
+    <button type="button" class="pl-btn pl-more" onclick="event.stopPropagation();openPlMenu('${s.id}')" title="更多" aria-label="更多"><i class="ti ti-dots-vertical"></i></button>
+  </div>`;
+}
+// ── 歌单顶部卡片背景：默认用自带的图，也可以换成自己的图（只存在这台设备）──
+const LS_SONG_LIB_PL_BG = 'churchSongLibPlaylistBg';
+const SONG_LIB_PL_BG_DEFAULT = 'icons/playlist-bg.jpg';
+function songLibPlBgGet() { try { return localStorage.getItem(LS_SONG_LIB_PL_BG) || ''; } catch (e) { return ''; } }
+function songLibPlBgStyle() {
+  const u = songLibPlBgGet() || SONG_LIB_PL_BG_DEFAULT;
+  return `background-image:url('${u.replace(/'/g, "\\'")}')`;
+}
+function songLibPlBgApply() { document.querySelectorAll('.pl-card').forEach(c => { c.style.cssText = songLibPlBgStyle(); }); }
+function openPlBgMenu() {
+  document.getElementById('plBgOverlay')?.classList.add('open');
+  const rs = document.getElementById('plBgReset'); if (rs) rs.style.display = songLibPlBgGet() ? '' : 'none';
+}
+function closePlBgMenu(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('plBgOverlay')?.classList.remove('open');
+}
+function songLibPlBgPick() { document.getElementById('plBgFile')?.click(); }
+function songLibPlBgReset() {
+  try { localStorage.removeItem(LS_SONG_LIB_PL_BG); } catch (e) { slDiag(e, 'songLibPlBgReset'); }
+  songLibPlBgApply(); closePlBgMenu(); showToast('已恢复默认背景');
+}
+// 选图后缩小压缩再存，避免撑爆本地存储
+function songLibPlBgOnFile(input) {
+  const f = input.files && input.files[0]; input.value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) { showToast('请选择图片文件'); return; }
+  const url = URL.createObjectURL(f), img = new Image();
+  img.onload = () => {
+    try {
+      const max = 1000, r = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(img.width * r); cv.height = Math.round(img.height * r);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      localStorage.setItem(LS_SONG_LIB_PL_BG, cv.toDataURL('image/jpeg', 0.8));
+      songLibPlBgApply(); closePlBgMenu(); showToast('背景已更换');
+    } catch (e) { slDiag(e, 'songLibPlBgOnFile'); showToast('图片太大，保存失败，换一张小一点的试试'); }
+    URL.revokeObjectURL(url);
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); showToast('图片读取失败'); };
+  img.src = url;
+}
+function songLibPlaylistListHtml(list) {
+  const wk = songLibWeekIdSet(true);
+  const week = list.filter(x => wk.has(x.id)), mine = list.filter(x => !wk.has(x.id));
+  let n = 0;
+  const group = (title, note, arr, isWeek) => arr.length
+    ? `<div class="pl-group"><span>${title}</span><small>${note}</small></div><div class="pl-list">${arr.map(x => songLibPlRowHtml(x, ++n, isWeek)).join('')}</div>` : '';
+  const playable = list.filter(x => getAudioLinksForTitle(x.title).length).length;
+  const sub = [week.length ? `本周 ${week.length} 首` : '', mine.length ? `我加入的 ${mine.length} 首` : ''].filter(Boolean).join(' · ');
+  return `<div class="pl-card" style="${songLibPlBgStyle()}">
+      <button type="button" class="pl-bg-btn" onclick="openPlBgMenu()" title="自定义背景" aria-label="自定义背景"><i class="ti ti-photo-edit"></i></button>
+      <div class="pl-head">
+        <div class="pl-cover"><i class="ti ti-playlist"></i></div>
+        <div class="pl-head-info"><div class="pl-head-title">我的歌单</div><div class="pl-head-sub">共 ${list.length} 首${sub ? ' · ' + sub : ''}</div></div>
+      </div>
+      <div class="pl-actions">
+        <button type="button" class="pl-playall" onclick="songLibPlaylistPlayAll()"><i class="ti ti-player-play-filled"></i>播放全部<span>${playable} 首可听</span></button>
+        <button type="button" class="pl-lookall" onclick="openLightboxFromLibraryGrid(0)"><i class="ti ti-book-2"></i>看谱</button>
+      </div>
+    </div>
+        ${group('本周诗歌', '自动加入', week, true)}${group('我加入的', '手动保留', mine, false)}`;
+}
+function songLibPlRowPlay(title) {
+  const cur = songLibNowTitleKey();
+  if (cur && cur === String(title || '').trim().toLowerCase()) { toggleFloatingAudioPlay(); return; }
+  quickPlaySongAudio(title);
+}
+function songLibPlaylistPlayAll() {
+  const first = getFilteredSongLibrary().find(x => getAudioLinksForTitle(x.title).length);
+  if (!first) { showToast('歌单里的歌暂时都没有可播放的音频'); return; }
+  quickPlaySongAudio(first.title);   // 默认「列表播放」，会按歌单顺序一首接一首
+}
+// 每首歌右边的「⋯」菜单
+function openPlMenu(id) {
+  const song = songLibrary.find(x => x.id === id); if (!song) return;
+  const st = songLibPlState(id, true), fav = isSongLibFavorite(id);
+  document.getElementById('plMenuTitle').textContent = song.title;
+  const items = [
+    ['ti-photo', '看谱', `closePlMenu();openLightboxFromLibraryGrid(${Math.max(0, getFilteredSongLibrary().findIndex(x => x.id === id))})`],
+    ['ti-info-circle', '查看详情', `closePlMenu();openSongLibDetailDirect('${id}')`],
+    [fav ? 'ti-heart-filled' : 'ti-heart', fav ? '取消收藏' : '收藏', `closePlMenu();toggleSongLibFavorite('${id}')`],
+    [st === 'mine' ? 'ti-playlist-x' : 'ti-pin', st === 'mine' ? '移出我的歌单' : st === 'week' ? '保留到我的歌单（过了本周也在）' : '加入我的歌单', `closePlMenu();toggleSongLibPlaylist('${id}')`],
+  ];
+  document.getElementById('plMenuBody').innerHTML = items.map(x => `<button type="button" class="pl-sheet-item${x[0] === 'ti-playlist-x' ? ' danger' : ''}" onclick="${x[2]}"><i class="ti ${x[0]}"></i>${x[1]}</button>`).join('');
+  document.getElementById('plMenuOverlay').classList.add('open');
+}
+function closePlMenu(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('plMenuOverlay')?.classList.remove('open');
+}
+function openSongLibDetailDirect(id) {   // （长辈模式里没有「⋯」菜单，所以这里直接打开详情页即可）
+  openSongLibDetail(id);
+}
+function songLibPlaylistBadgeHtml(s) {   // 在「我的歌单」里给本周的歌打个小标记
+  if (songLibTab !== 'playlist') return '';
+  try { if (songLibWeekSongs().some(x => x.id === s.id)) return '<span class="song-lib-plbadge">本周</span>'; } catch (e) { return ''; }
+  return '';
+}
+
 const LS_SONG_LIB_CATEGORIES = 'churchSongLibCategories';
 
 let songLibCategories = [];
@@ -966,7 +1189,7 @@ let songLibCategoryFilter = '';
 
 let songLibSongbookFilter = '';
 
-let songLibTab = 'all'; // 'all'（首页）| 'favorite' | 'recent' | 'books'（诗歌本）
+let songLibTab = 'all'; // 'all'（首页）| 'favorite' | 'playlist'（我的歌单）| 'recent' | 'books'（诗歌本）
 // 排序：created = 收录时间；pinyin = 拼音首字母；used = 最近使用时间（取自每周排班）
 let songLibSortKey = 'created', songLibSortReverse = false;
 try {
@@ -1005,6 +1228,7 @@ function renderSongLibTabs(){
     { id: 'all', label: '首页' },
     { id: 'recent', label: '最近使用' },
     { id: 'books', label: '诗歌本' },
+    { id: 'playlist', label: '我的歌单' },   // 本周选好的歌会自动进来
     { id: 'favorite', label: '我的收藏' },   // 放在最右边
   ];
   wrap.innerHTML = tabs.map(t =>
@@ -1984,6 +2208,8 @@ function getFilteredSongLibrary(){
   if (songLibTab === 'favorite') {
     list = list.filter(s => isSongLibFavorite(s.id));
     sortSongLibList(list);
+  } else if (songLibTab === 'playlist') {
+    list = songLibPlaylistSongs().all;   // 本周的歌在前、按选歌顺序；后面是手动加入的，不重新排序
   } else if (songLibTab === 'recent') {
     list = list.filter(s => s.lastPlayedAt);
     list.sort((a,b) => new Date(b.lastPlayedAt) - new Date(a.lastPlayedAt));
@@ -2282,12 +2508,16 @@ function renderSongLibraryGrid(){
   songLibRenderWeekCard();
   try { songLibUpdateStaleHint(); } catch (e) { slDiag(e, 'songLibUpdateStaleHint'); }
   if (songLibSkelOn) { songLibRenderSkeleton(); return; }   // 骨架还没结束时，云端数据回来也先不刷新
-  if (overlayEl) overlayEl.classList.toggle('tab-recent', songLibTab === 'recent');
+  if (overlayEl) { overlayEl.classList.toggle('tab-recent', songLibTab === 'recent'); overlayEl.classList.toggle('tab-playlist', songLibTab === 'playlist'); }
+  _slWeekIdSet = null;
   if (songLibTab === 'recent') { songLibRenderRecent(grid, countEl); return; }
   const list = getFilteredSongLibrary();
   const filtered = !!(songLibSearchKeyword || songLibCategoryFilter || songLibSongbookFilter || songLibTagFilter.length || songLibUsageFilter);
   if (songLibTab === 'favorite') {
     countEl.textContent = filtered ? `找到 ${list.length} 首` : `共收藏 ${list.length} 首`;
+  } else if (songLibTab === 'playlist') {
+    const pl = songLibPlaylistSongs();
+    countEl.textContent = filtered ? `找到 ${list.length} 首` : (pl.week.length ? `本周 ${pl.week.length} 首` + (pl.mine.length ? ` · 我加入的 ${pl.mine.length} 首` : '') : `共 ${list.length} 首`);
   } else if (songLibTab === 'recent') {
     countEl.textContent = filtered ? `找到 ${list.length} 首` : `最近使用 ${list.length} 首`;
   } else {
@@ -2299,12 +2529,14 @@ function renderSongLibraryGrid(){
   if (!list.length) {
     let emptyIcon = filtered ? 'ti-search-off' : 'ti-music-off';
     let emptyMsg = filtered ? '没有找到匹配的诗歌' : '歌单库还是空的，上传诗歌后会自动收录';
+    if (!filtered && songLibTab === 'playlist') { emptyIcon = 'ti-playlist'; emptyMsg = '本周还没有选歌。选好后，本周的歌会自动出现在这里；也可以在歌曲详情页点「加入歌单」自己添加'; }
     if (!filtered && songLibTab === 'favorite') { emptyIcon = 'ti-heart'; emptyMsg = '还没有收藏任何诗歌，点击♡即可收藏'; }
     if (!filtered && songLibTab === 'recent') { emptyIcon = 'ti-history'; emptyMsg = '还没有播放记录，播放过的诗歌会显示在这里'; }
     grid.className = 'song-lib-grid view-list';
     grid.innerHTML = `<div class="song-lib-empty"><i class="ti ${emptyIcon}"></i>${emptyMsg}</div>` + songLibSearchCtaHtml();
     return;
   }
+  if (songLibTab === 'playlist') { grid.className = 'song-lib-grid view-playlist'; grid.innerHTML = songLibPlaylistListHtml(list); songLibSyncPlaylistRows(); return; }
   if (songLibViewMode === 'waterfall') { grid.className = 'song-lib-grid view-wf'; songLibRenderWaterfall(grid, list); return; }
   grid.className = 'song-lib-grid view-list';
   grid.innerHTML = list.map((s,i) => {
@@ -2322,6 +2554,7 @@ function renderSongLibraryGrid(){
       ? metaParts.join('<span class="ulib-dot"> · </span>')
       : '<span style="color:#ccc">暂无使用记录</span>';
     const badges = [];
+    { const pb = songLibPlaylistBadgeHtml(s); if (pb) badges.push(pb); }
     if (s.category) badges.push(`<span class="song-lib-category-badge">${escapeHtml(s.category)}</span>`);
     if (s.keys.length > 1) badges.push(`<span class="song-lib-key-count-badge">${s.keys.length}个调</span>`);
     const sourceParts = [];
@@ -2342,7 +2575,7 @@ function renderSongLibraryGrid(){
         <div class="song-lib-card-meta">${meta}</div>
       </div>
       <div class="song-lib-card-actions">
-        <button class="song-lib-card-play-btn" onclick="event.stopPropagation();quickPlaySongAudio('${safeTitle}')" title="列表播放"><i class="ti ti-player-play"></i></button>
+        <button class="song-lib-card-play-btn${getAudioLinksForTitle(s.title).length ? '' : ' no-audio'}" data-title="${escapeHtml(s.title)}" onclick="event.stopPropagation();quickPlaySongAudio('${safeTitle}')" title="列表播放"><i class="ti ti-player-play"></i></button>
         <button class="song-lib-card-fav-btn${isFav?' active':''}" onclick="event.stopPropagation();toggleSongLibFavorite('${s.id}')" title="${isFav?'取消收藏':'收藏'}"><i class="ti ${isFav?'ti-heart-filled':'ti-heart'}"></i></button>
       </div>
     </div>`;
@@ -2406,6 +2639,7 @@ function songLibWCardHtml(s, i){
     ? `<div class="song-lib-wthumb has-img"${style}><img src="${firstSrc}" alt="${escapeHtml(s.title)}" loading="lazy" decoding="async" onload="songLibNoteRatio(this,'${s.id}')" onclick="event.stopPropagation();openLightboxFromLibraryGrid(${i})">${s.keys.length > 1 ? `<span class="song-lib-wthumb-badge">${s.keys.length}个调</span>` : ''}</div>`
     : `<div class="song-lib-wthumb noimg"><i class="ti ti-photo"></i></div>`;
   const pills = [];
+  { const pb = songLibPlaylistBadgeHtml(s); if (pb) pills.push(pb); }
   if (s.songbook) pills.push(`<span class="song-lib-wpill">${escapeHtml(s.songbook)}</span>`);
   pills.push(songLibStaleTagHtml(s));
   pills.push(songLibTagPillsHtml(s, 'song-lib-wpill tag', 3));
@@ -2425,7 +2659,7 @@ function songLibWCardHtml(s, i){
       <div class="song-lib-wfoot">
         <span class="song-lib-wfoot-txt">${foot}</span>
         <div class="song-lib-wfoot-btns">
-          <button class="song-lib-card-play-btn" onclick="event.stopPropagation();quickPlaySongAudio('${safeTitle}')" title="列表播放"><i class="ti ti-player-play"></i></button>
+          <button class="song-lib-card-play-btn${getAudioLinksForTitle(s.title).length ? '' : ' no-audio'}" data-title="${escapeHtml(s.title)}" onclick="event.stopPropagation();quickPlaySongAudio('${safeTitle}')" title="列表播放"><i class="ti ti-player-play"></i></button>
           <button class="song-lib-card-fav-btn${isFav ? ' active' : ''}" onclick="event.stopPropagation();toggleSongLibFavorite('${s.id}')" title="${isFav ? '取消收藏' : '收藏'}"><i class="ti ${isFav ? 'ti-heart-filled' : 'ti-heart'}"></i></button>
         </div>
       </div>
@@ -3463,6 +3697,7 @@ function renderSongLibDetailFavBtn(){
   btn.classList.toggle('active', isFav);
   btn.title = isFav ? '取消收藏' : '收藏';
   btn.innerHTML = `<i class="ti ${isFav ? 'ti-heart-filled' : 'ti-heart'}"></i>`;
+  renderSongLibDetailPlBtn();
 }
 
 function markSongLibPlayed(title){
@@ -4446,6 +4681,7 @@ function stopFloatingAudio() {
   if (globalAudioEl) globalAudioEl.pause();
   loadedAudioLinkId = null;
   hideFloatingAudioBar();
+  songLibSyncPlaylistRows();
 }
 
 function toggleFloatingAudioPlay() {
@@ -4460,6 +4696,7 @@ function updateFloatingAudioPlayState() {
   btn.innerHTML = playing ? '<i class="ti ti-player-pause"></i>' : '<i class="ti ti-player-play"></i>';
   const icon = document.getElementById('floatingAudioIcon');
   if (icon) icon.classList.toggle('spin', !!playing);
+  songLibSyncPlaylistRows(); songLibSyncPlButtons();
 }
 
 function updateFloatingAudioProgress() {
@@ -4771,6 +5008,7 @@ function renderNowPlayingFavBtn() {
   if (btn) { btn.classList.toggle('active', isFav); btn.innerHTML = `<i class="ti ${isFav ? 'ti-heart-filled' : 'ti-heart'}"></i>`; }
   const moreBtn = document.getElementById('npMoreFavBtn');
   if (moreBtn) moreBtn.innerHTML = `<i class="ti ${isFav ? 'ti-heart-filled' : 'ti-heart'}"></i>${isFav ? '取消收藏' : '收藏'}`;
+  songLibSyncPlButtons();
 }
 
 function toggleNowPlayingFavorite() {
@@ -6450,7 +6688,7 @@ const OB_STEPS = [
   { part: '认识首页', title: '顶部工具栏', target: '.song-lib-page-top', state: { tab: 'all' },
     text: '这里是页面标题和几个小图标，<b>右边</b>依次是：<b>管理员登录</b>、<b>？</b>使用引导（随时重看）、<b>离线与备份</b>（云朵图标）、<b>上传诗歌</b>。切到其他标签页时会多出一个<b>放大镜</b>用来搜索；管理员登录后还会多一个<b>齿轮</b>（音乐存储设置）和<b>旗子</b>（歌谱纠错反馈）。最前面的两个图标是<b>长辈模式</b>和<b>字号</b>（下一步细说）。' },
   { part: '认识首页', title: '长辈模式与字号', target: () => document.getElementById('elderToggleBtn'), state: { tab: 'all', search: '' }, skip: () => !document.getElementById('elderToggleBtn'),
-    text: '给长辈用很方便：<b>Aa 图标</b>一键切换<b>长辈模式</b>——字更大、界面更简洁、只留搜歌和看谱；旁边的<b>字号</b>按钮可在「标准 / 大 / 特大」之间轮流切换。设置会记在这台设备上，点「标准版」就能切回来。<br>把链接后面加上 <b>?elder=1</b> 发给长辈，他们打开就直接是大字版。' },
+    text: '给长辈用很方便：<b>Aa 图标</b>一键切换<b>长辈模式</b>——字更大、界面更简洁、只留搜歌和看谱；旁边的<b>字号</b>按钮可在「标准 / 大 / 特大」之间轮流切换。有音频的歌曲还会显示一个绿色<b>播放键</b>，看谱页顶部也有大号的「听歌」按钮，点一下就能边看谱边听。设置会记在这台设备上，点「标准版」就能切回来。<br>把链接后面加上 <b>?elder=1</b> 发给长辈，他们打开就直接是大字版。' },
   { part: '认识首页', title: '久未使用提醒', target: '#songLibStaleHint', state: { tab: 'all', search: '' }, skip: () => !obVisible(document.getElementById('songLibStaleHint')),
     text: '首页偶尔会冒出这样一条提醒：有几首歌<b>很久没唱</b>了。点一下就只看这些歌，选歌时想「换换口味」很方便；点右边的 ✕ 可以 7 天内不再提示。' },
   { part: '认识首页', title: '管理员提示条', target: () => [document.getElementById('songLibImportHint'), document.getElementById('songLibDupHint')].find(obVisible) || null, state: { tab: 'all', search: '' },
@@ -6506,10 +6744,12 @@ const OB_STEPS = [
     text: '最下面是<b>使用记录</b>：这首歌在哪些主日唱过。选歌时参考它，就不会连续几周唱同一首啦。' },
 
   // ── ④ 分类与筛选 ──
-  { part: '分类与筛选', title: '四个标签页', target: '#songLibTabs', state: { tab: 'all', search: '' },
-    text: '<b>首页</b>：全部诗歌；<b>最近使用</b>：按周看本月唱过的歌；<b>诗歌本</b>：按歌本浏览；<b>我的收藏</b>：你点过 ♡ 的歌。下面我带你各看一眼。' },
+  { part: '分类与筛选', title: '五个标签页', target: '#songLibTabs', state: { tab: 'all', search: '' },
+    text: '<b>首页</b>：全部诗歌；<b>最近使用</b>：按周看本月唱过的歌；<b>诗歌本</b>：按歌本浏览；<b>我的歌单</b>：<b>本周选好的歌会自动出现在这里</b>，也可以在详情页点「加入歌单」自己添加；<b>我的收藏</b>：你点过 ♡ 的歌。下面我带你各看一眼。' },
   { part: '分类与筛选', title: '最近使用', target: () => document.querySelector('#songLibGrid .song-lib-weekcard') || document.getElementById('songLibGrid'), state: { tab: 'recent' },
     text: '本月<b>每一周一张卡片</b>，最近的在最前面，标着「本周 / 上周 / 上上周」；卡片里的歌谱<b>横向排开</b>，歌名在图下面。想看某首歌上周唱了没有，来这里一眼就知道。点歌名看详情，点缩略图看谱。' },
+  { part: '分类与筛选', title: '我的歌单', target: '#songLibGrid', state: { tab: 'playlist' },
+    text: '<b>本周主领选好的歌，会自动出现在这里</b>（带「本周」小标记，按选歌顺序排在最前面），聚会前想把本周的歌过一遍，来这里就行，不用自己再找。<br>想长期留着的歌，在<b>歌曲详情页</b>点标题旁的「加入歌单」按钮，它会排在本周的歌后面，过了本周也还在。歌单只存在这台设备上。' },
   { part: '分类与筛选', title: '我的收藏', target: '#songLibGrid', state: { tab: 'favorite' },
     text: () => songLibrary.some(s => isSongLibFavorite(s.id))
       ? '这里是你收藏的歌，用法和首页一样，支持搜索和排序。'
@@ -6922,6 +7162,7 @@ async function bootstrapSongLibPage() {
   slScrollUXInit();
   loadSongLibrary();
   loadSongLibFavorites();
+  loadSongLibPlaylist();
   loadSongLibCategories();
   loadSongLibSongbooks();
   loadSongLibTags();

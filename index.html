@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261209">
-<link rel="stylesheet" href="elder.css?v=20261201">
+<link rel="stylesheet" href="styles.css?v=20261214">
+<link rel="stylesheet" href="elder.css?v=20261214">
 <script>try{var q=new URLSearchParams(location.search).get("elder"),v=(q==="1"||q==="0")?q:localStorage.getItem("songlibElder");if(v==="1"){var h=document.documentElement;h.classList.add("elder");var n=+localStorage.getItem("songlibElderScale")||0;h.style.setProperty("--es",[1,1.15,1.3][n]||1)}}catch(e){}</script>
 </head>
 <body>
@@ -354,6 +354,7 @@
       <button class="song-lib-detail-share-btn" onclick="openSongShareFromDetail()" title="分享"><i class="ti ti-share"></i></button>
       <button class="song-lib-detail-rename-btn" id="songLibDetailRenameBtn" style="display:none" onclick="renameSongLibSong()" title="修改歌名（管理员）"><i class="ti ti-pencil"></i></button>
     </div>
+    <div class="song-lib-detail-pl-row"><button type="button" class="song-lib-detail-plbtn" id="songLibDetailPlBtn" onclick="toggleSongLibPlaylistFromDetail()"><i class="ti ti-playlist-add"></i>加入我的歌单</button></div>
     <div class="song-lib-detail-category" id="songLibDetailCategory"></div>
     <div class="song-lib-detail-source" id="songLibDetailSource"></div>
     <div class="song-lib-detail-meta" id="songLibDetailMeta"></div>
@@ -499,6 +500,7 @@
         <button onclick="closeNowPlayingMoreMenu();openMusicShare()"><i class="ti ti-share"></i>分享音乐</button>
         <button onclick="closeNowPlayingMoreMenu();downloadCurrentNowPlayingImage()"><i class="ti ti-download"></i>下载谱子图片</button>
         <button id="npMoreFavBtn" onclick="closeNowPlayingMoreMenu();toggleNowPlayingFavorite()"><i class="ti ti-heart"></i>收藏</button>
+        <button id="npMorePlBtn" onclick="closeNowPlayingMoreMenu();toggleNowPlayingPlaylist()"><i class="ti ti-playlist-add"></i>加入我的歌单</button>
       </div>
     </div>
   </div>
@@ -511,6 +513,7 @@
         <div class="np-song-title" id="npSongTitle"></div>
         <div class="np-song-band" id="npSongBand"></div>
       </div>
+      <button class="np-fav-btn np-pl-btn" id="npPlBtn" onclick="toggleNowPlayingPlaylist()" title="加入我的歌单"><i class="ti ti-playlist-add"></i></button>
       <button class="np-fav-btn" id="npFavBtn" onclick="toggleNowPlayingFavorite()" title="收藏"><i class="ti ti-heart"></i></button>
     </div>
     <div class="np-tags-row" id="npTagsRow"></div>
@@ -626,6 +629,26 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="plMenuOverlay" onclick="closePlMenu(event)">
+  <div class="pl-sheet" onclick="event.stopPropagation()">
+    <div class="picker-handle"></div>
+    <div class="pl-sheet-title" id="plMenuTitle"></div>
+    <div id="plMenuBody"></div>
+    <button type="button" class="pl-sheet-cancel" onclick="closePlMenu()">取消</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="plBgOverlay" onclick="closePlBgMenu(event)">
+  <div class="pl-sheet" onclick="event.stopPropagation()">
+    <div class="picker-handle"></div>
+    <div class="pl-sheet-title">自定义歌单背景</div>
+    <button type="button" class="pl-sheet-item" onclick="songLibPlBgPick()"><i class="ti ti-photo-up"></i>从相册选择图片</button>
+    <button type="button" class="pl-sheet-item" id="plBgReset" onclick="songLibPlBgReset()"><i class="ti ti-restore"></i>恢复默认背景</button>
+    <input type="file" id="plBgFile" accept="image/*" hidden onchange="songLibPlBgOnFile(this)">
+    <button type="button" class="pl-sheet-cancel" onclick="closePlBgMenu()">取消</button>
+  </div>
+</div>
+
 <div class="floating-audio-bar" id="floatingAudioBar">
   <div class="floating-audio-bar-main">
     <div class="floating-audio-bar-icon" id="floatingAudioIcon"><i class="ti ti-music"></i></div>
@@ -634,6 +657,7 @@
       <div class="floating-audio-bar-sub" id="floatingAudioSub">—</div>
     </div>
     <div class="floating-audio-bar-btns">
+      <button id="floatingAudioPlBtn" class="fab-pl" onclick="floatingAudioTogglePlaylist()" title="加入我的歌单"><i class="ti ti-playlist-add"></i></button>
       <button id="floatingAudioPrevBtn" onclick="floatingAudioPrev()" title="上一个"><i class="ti ti-player-skip-back"></i></button>
       <button class="fab-play" id="floatingAudioPlayBtn" onclick="toggleFloatingAudioPlay()" title="播放/暂停"><i class="ti ti-player-pause"></i></button>
       <button id="floatingAudioNextBtn" onclick="floatingAudioNext()" title="下一个"><i class="ti ti-player-skip-forward"></i></button>
@@ -746,11 +770,11 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261210"></script>
+<script defer src="app.js?v=20261214"></script>
 <script defer src="offline.js?v=20261129"></script>
 <script defer src="export-pdf.js?v=20261129"></script>
 <script defer src="suggest.js?v=20261206"></script>
 <script defer src="fix.js?v=20261205"></script>
-<script defer src="elder.js?v=20261201"></script>
+<script defer src="elder.js?v=20261211"></script>
 </body>
 </html>

@@ -217,7 +217,7 @@
     const data = {
       app: 'songlib', version: 1, exportedAt: new Date().toISOString(),
       songLibrary: deepClone(songLibrary), categories: deepClone(songLibCategories), songbooks: deepClone(songLibSongbooks),
-      tags: deepClone(songLibTags), songData: deepClone(songData), favorites: [...songLibFavoriteIds],
+      tags: deepClone(songLibTags), songData: deepClone(songData), favorites: [...songLibFavoriteIds], playlist: [...songLibPlaylistIds],
     };
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -260,7 +260,7 @@
   }
 
   async function afterImport(msg) {
-    persistSongLibrary(); persistSongLibFavorites(); persistSongLibCategories(); persistSongLibSongbooks(); persistSongLibTags();
+    persistSongLibrary(); persistSongLibFavorites(); persistSongLibPlaylist(); persistSongLibCategories(); persistSongLibSongbooks(); persistSongLibTags();
     try { songLibCacheRemoteState(); } catch (e) { slDiag(e, 'afterImport'); }
     renderSongLibFilterBar(); renderSongLibraryGrid(); updateSongLibImportHint();
     staged = null; renderImportBox(); render();
@@ -287,6 +287,7 @@
     Object.keys(bd).forEach(k => { if (bd[k].length && !(songData[k] && songData[k].length)) { songData[k] = bd[k]; weeks++; } });
     const exist = new Set(songLibrary.map(s => s.id));
     (d.favorites || []).forEach(id => { if (exist.has(id)) songLibFavoriteIds.add(id); });
+    (d.playlist || []).forEach(id => { if (exist.has(id) && !songLibPlaylistIds.includes(id)) songLibPlaylistIds.push(id); });
     await afterImport(`✅ 已补充 ${incoming.length} 首诗歌、${weeks} 周使用记录`);
   }
 
@@ -302,6 +303,7 @@
     songData = normalizeSongData(d.songData);
     const exist = new Set(songLibrary.map(s => s.id));
     songLibFavoriteIds = new Set((d.favorites || []).filter(id => exist.has(id)));
+    songLibPlaylistIds = (d.playlist || []).filter(id => exist.has(id));
     await afterImport(`✅ 已用备份覆盖，共 ${songLibrary.length} 首诗歌`);
   }
 
