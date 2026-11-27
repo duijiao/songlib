@@ -1974,7 +1974,8 @@ html.elder .sl-more-wrap { display: none !important; }
   .song-lib-tab .sl-tab-ico { display: block; font-size: 24px; line-height: 1; }
   .song-lib-tab.active, .song-lib-tab.sub-active { color: var(--primary); }
   /* 首页工具栏里的「最近」入口（底部导航里没有「最近使用」） */
-  .song-lib-page.tab-home #songLibRecentBtn { display: inline-flex; }
+  .song-lib-page.tab-home.wk-recent-tb #songLibRecentBtn,
+  html.elder .song-lib-page.tab-home #songLibRecentBtn { display: inline-flex; }   /* 平时「最近」在本周卡片上；卡片被隐藏 / 读取失败 / 长辈模式（不显示卡片按钮）时才出现在工具栏 */
   /* 底部迷你播放条抬高，不盖住导航栏 */
   body:has(.song-lib-page.open:not(.ds-mode):not(.sel-mode)) .floating-audio-bar.show { bottom: calc(70px + env(safe-area-inset-bottom)); }
 }
@@ -2003,3 +2004,125 @@ html.elder .sl-more-wrap { display: none !important; }
 .sl-abar-i { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 0; border-radius: 999px; background: #fff; color: var(--primary-dark); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-sm); }
 .sl-abar-i i { font-size: 14px; }
 .sl-abar-i:active { transform: scale(.97); }
+
+
+/* ── 诗歌本音乐：专属搜索 / 诗歌本卡片上的「播放」「加入我的歌单」，以及歌单里的分组 ── */
+.song-lib-card-play-btn.hm-play.playing, .song-lib-card-play-btn.hm-play.current { background: var(--primary); color: #fff; }
+.song-lib-card-play-btn.hm-pl.added { background: var(--primary); color: #fff; }
+.song-lib-card-play-btn.hm-play.busy, .song-lib-card-play-btn.hm-pl.busy,
+.pl-btn.pl-play.busy { opacity: .45; pointer-events: none; animation: dsAddPulse .8s ease-in-out infinite alternate; }
+.song-lib-plbadge.hm { background: #0e9f8e; }
+.pl-group .hm-group-play {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 12px; border: none; border-radius: 999px;
+  background: var(--bg-subtle); color: var(--primary); font-size: 12px; font-weight: 700; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pl-group .hm-group-play:active { background: var(--primary); color: #fff; }
+
+/* ── 歌词一键复制 ── */
+.lightbox-lyrics-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lb-lyrics-copy { flex: none; display: inline-flex; align-items: center; gap: 4px; border: none; border-radius: 999px; padding: 5px 12px; background: rgba(255,255,255,.12); color: #e6ecf7; font-size: 13px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.lb-lyrics-copy:active { background: rgba(255,255,255,.28); }
+.np-slide-panel-head .np-head-btns { display: flex; align-items: center; gap: 12px; }
+.np-slide-panel-head .np-copy-btn { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 600; color: var(--primary); }
+
+/* ── 搜索框里的「来源 / 范围」胶囊（取代放大镜图标和原来那一行切换） ── */
+.song-lib-ds-switch { display: none !important; }
+#songLibDsSources { display: none; }
+.song-lib-ds-srcrow .song-lib-view-switch { margin-left: auto; }
+.song-lib-search-wrap { padding-left: 5px; }
+.sl-scope-btn {
+  flex: none; display: inline-flex; align-items: center; gap: 2px; height: 34px; padding: 0 8px 0 12px;
+  border: 0; border-radius: 999px; background: var(--primary-light); color: var(--primary);
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; max-width: 46%;
+}
+.sl-scope-btn span { overflow: hidden; text-overflow: ellipsis; }
+.sl-scope-btn i { font-size: 14px; transition: transform .18s; }
+.song-lib-search-wrap.sl-scope-open .sl-scope-btn i { transform: rotate(180deg); }
+.sl-scope-btn:active { transform: scale(.97); }
+.sl-scope-menu {
+  display: none; position: absolute; left: 0; top: calc(100% + 8px); z-index: 32; width: min(264px, 86vw);
+  background: #fff; border: 1px solid var(--border-soft); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 6px;
+}
+.song-lib-search-wrap.sl-scope-open .sl-scope-menu { display: block; animation: songLibSearchIn .16s ease; }
+.sl-scope-h { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px 4px; font-size: 11.5px; font-weight: 700; color: var(--text-4); }
+.sl-scope-h em { font-style: normal; font-weight: 500; }
+.sl-scope-sec + .sl-scope-sec { border-top: 1px solid var(--border-soft); margin-top: 4px; padding-top: 2px; }
+.sl-scope-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--text-1); font-size: 14px; font-family: inherit; text-align: left; cursor: pointer;
+}
+.sl-scope-menu button:active, .sl-scope-menu button:hover { background: var(--bg-subtle); }
+.sl-scope-menu button > i:first-child { font-size: 18px; color: var(--text-3); flex: none; }
+.sl-scope-menu button > span { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.sl-scope-menu small { font-size: 11px; color: var(--text-4); font-weight: 400; }
+.sl-scope-menu .sl-ck { display: none; font-size: 16px; color: var(--primary); flex: none; }
+.sl-scope-menu button.on { color: var(--primary); font-weight: 700; }
+.sl-scope-menu button.on > i:first-child { color: var(--primary); }
+.sl-scope-menu button.on .sl-ck { display: block; }
+/* 范围只对「诗歌库」有用；其他标签页里没有「来源」可选，外部来源下也不显示范围 */
+.song-lib-page:not(.tab-home) .sl-scope-srcsec,
+.song-lib-page.ds-mode .sl-scope-fldsec { display: none; }
+.song-lib-page:not(.tab-home) .sl-scope-fldsec { border-top: 0; margin-top: 0; padding-top: 0; }
+@media (max-width: 380px) { .song-lib-search-go { padding: 0 14px; } .sl-scope-btn { padding: 0 6px 0 9px; font-size: 12.5px; } }
+
+/* ── 搜索结果：歌词命中片段 / 标签命中高亮 / 提示 ── */
+.song-lib-lyhit { display: flex; align-items: baseline; gap: 5px; margin-top: 4px; font-size: 12px; color: var(--text-3); line-height: 1.45; min-width: 0; }
+.song-lib-lyhit-k { flex: none; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 5px; background: #fff1e0; color: #c0691a; }
+.song-lib-lyhit-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.song-lib-wcard .song-lib-lyhit-t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.song-lib-wcard .song-lib-lyhit { margin-top: 2px; }
+.song-lib-wpill.tag.hit, .song-lib-tagpill.hit { background: var(--primary); color: #fff; }
+.song-lib-count .sl-cnt-break { color: var(--text-3); }
+
+/* ── 顶栏：logo + 标题 + 本周主日日期 ── */
+.song-lib-page-top { padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: 10px; background: #fff; }
+.song-lib-page-brand { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding-left: 4px; }
+.song-lib-page-logo { flex: none; width: 34px; height: 34px; border-radius: 10px; box-shadow: 0 2px 8px rgba(29,158,117,0.25); }
+.song-lib-page-titlebox { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.song-lib-page-brand .song-lib-page-title { flex: none; padding-left: 0; line-height: 1.2; }
+.song-lib-page-sub { font-size: 12px; line-height: 1.3; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.is-offline .song-lib-page-title::after { content: ''; }
+.is-offline .song-lib-page-sub::after { content: ' · 离线'; font-weight: 600; color: #b7791f; }
+@media (max-width: 380px) { .song-lib-page-logo { width: 30px; height: 30px; border-radius: 9px; } .song-lib-page-brand { gap: 8px; } }
+
+/* 本周卡片：2×2 序号样式（可选，默认仍是缩略图）+ 样式切换按钮 */
+.song-lib-weeklayout { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 26px; padding: 0; border: none; border-radius: 999px; background: var(--bg-subtle); color: var(--text-2); cursor: pointer; font-family: inherit; }
+.song-lib-weeklayout i { font-size: 15px; }
+.song-lib-weekgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding: 2px 14px 4px; }
+.wg-item { display: flex; align-items: center; gap: 8px; min-width: 0; border: none; background: transparent; padding: 5px 0; font-family: inherit; text-align: left; color: inherit; cursor: pointer; }
+.wg-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--primary-light); color: var(--primary); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.wg-t { min-width: 0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-tc { flex: none; font-size: 11.5px; font-weight: 600; color: #92400e; background: #fef3c7; border-radius: 6px; padding: 1px 6px; }
+.wg-item:active .wg-t { color: var(--primary); }
+
+/* 专属搜索 · 诗歌本：歌本只显示几个 + 输入框 */
+.sl-bk-find { position: relative; display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid rgba(0,0,0,0.12); background: #fff; border-radius: 999px; padding: 0 10px; height: 26px; min-width: 130px; flex: 1 1 130px; max-width: 220px; }
+.sl-bk-find > i { font-size: 13px; color: var(--text-3); }
+.sl-bk-find input { border: none; outline: none; background: transparent; font: inherit; font-size: 12.5px; min-width: 0; width: 100%; color: inherit; }
+.sl-bk-find:focus-within { border-color: var(--primary); }
+.sl-bk-sug { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; display: flex; flex-direction: column; min-width: 200px; max-height: 260px; overflow-y: auto; background: #fff; border: 1px solid var(--border-soft); border-radius: 12px; box-shadow: 0 8px 24px rgba(23,32,51,0.16); padding: 4px; }
+.sl-bk-sug[hidden] { display: none; }
+.sl-bk-opt { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border: none; background: transparent; padding: 9px 10px; border-radius: 8px; font: inherit; font-size: 14px; text-align: left; cursor: pointer; color: inherit; }
+.sl-bk-opt small { font-size: 11.5px; color: var(--text-3); flex: none; }
+.sl-bk-opt:active, .sl-bk-opt:hover { background: var(--primary-light); }
+.sl-bk-none { padding: 10px; font-size: 13px; color: var(--text-3); }
+
+/* 本周卡片「⋯」菜单 */
+.sl-wkm-wrap { position: relative; display: inline-flex; }
+.sl-wkm-btn { padding: 3px 9px; }
+.sl-wkm { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; display: flex; flex-direction: column; min-width: 168px; background: #fff; border: 1px solid var(--border-soft); border-radius: 12px; box-shadow: 0 8px 24px rgba(23,32,51,0.16); padding: 4px; }
+.sl-wkm[hidden] { display: none; }
+.sl-wkm button { display: flex; align-items: center; gap: 8px; border: none; background: transparent; padding: 11px 12px; border-radius: 8px; font: inherit; font-size: 14px; color: var(--text-1, #1b2b26); text-align: left; cursor: pointer; white-space: nowrap; }
+.sl-wkm button i { font-size: 17px; color: var(--text-2); }
+.sl-wkm button:active, .sl-wkm button:hover { background: var(--primary-light); }
+
+.song-lib-weekhead-l .song-lib-weekcount { margin-left: 0; }
+
+/* 本周卡片骨架屏 */
+.skel-wk-pill { display: inline-block; width: 52px; height: 26px; border-radius: 999px; }
+.skel-wk-pill.dot { width: 32px; }
+.skel-wk-lead { display: flex; flex-direction: column; gap: 8px; padding: 2px 14px 10px; }
+.skel-wk-n { flex: none; width: 26px; height: 26px; border-radius: 50%; }
+.song-lib-weekhead-l .skel-block { display: inline-block; vertical-align: middle; margin-right: 8px; }

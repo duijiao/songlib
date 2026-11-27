@@ -178,3 +178,15 @@ html.elder .pl-row.playing .pl-btn.pl-play { background: #fff; color: var(--prim
   html.elder .song-lib-tab { font-size: calc(15px * min(var(--es, 1), 1.1)); padding: 8px 2px; border-bottom-width: 0; }
   html.elder .song-lib-tab .sl-tab-ico { font-size: 28px; }
 }
+
+/* ── 搜索来源胶囊：长辈模式放大 ── */
+html.elder .sl-scope-btn { height: 46px; padding: 0 10px 0 16px; font-size: calc(19px * var(--es, 1)); }
+html.elder .sl-scope-menu button { font-size: calc(19px * var(--es, 1)); padding: 12px; }
+html.elder .sl-scope-menu small, html.elder .sl-scope-h { font-size: calc(14px * var(--es, 1)); }
+html.elder .song-lib-lyhit { font-size: calc(16px * var(--es, 1)); }
+
+/* ── 顶栏：长辈模式 ── */
+html.elder .song-lib-page-logo { width: 44px; height: 44px; border-radius: 12px; }
+html.elder .song-lib-page-sub { font-size: calc(16px * var(--es, 1)); }
+
+html.elder .song-lib-weeklayout { display: none !important; }

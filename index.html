@@ -28,8 +28,8 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261234">
-<link rel="stylesheet" href="elder.css?v=20261218">
+<link rel="stylesheet" href="styles.css?v=20261244">
+<link rel="stylesheet" href="elder.css?v=20261220">
 <script>try{var q=new URLSearchParams(location.search).get("elder"),v=(q==="1"||q==="0")?q:localStorage.getItem("songlibElder");if(v==="1"){var h=document.documentElement;h.classList.add("elder");var n=+localStorage.getItem("songlibElderScale")||0;h.style.setProperty("--es",[1,1.15,1.3][n]||1)}}catch(e){}</script>
 </head>
 <body>
@@ -38,7 +38,13 @@
 
 <div class="song-lib-page open tab-home" id="songLibraryOverlay">
   <div class="song-lib-page-top">
-    <div class="song-lib-page-title">诗歌库2.0</div>
+    <div class="song-lib-page-brand">
+      <img class="song-lib-page-logo" src="icons/icon-192.png" alt="" width="34" height="34" decoding="async">
+      <div class="song-lib-page-titlebox">
+        <div class="song-lib-page-title">诗歌库2.0</div>
+        <div class="song-lib-page-sub" id="songLibTopSub">巴西华人基督教会</div>
+      </div>
+    </div>
     <div class="song-lib-page-top-right">
       <button class="song-lib-page-search-btn" id="songLibSearchToggleBtn" onclick="toggleSongLibSearch()" title="搜索" aria-label="搜索"><i class="ti ti-search"></i></button>
       <!-- 顶栏只留「搜索」和「更多」；其余按钮（保留原 id / onclick）都收进「更多」菜单里 -->
@@ -78,8 +84,24 @@
         <button type="button" class="stale-x" onclick="songLibDismissStaleHint(event)" aria-label="7 天内不再提示"><i class="ti ti-x"></i></button>
       </div>
       <div class="song-lib-search-wrap" id="songLibSearchWrap">
-        <i class="ti ti-search song-lib-search-icon"></i>
-        <input class="song-lib-search-input" id="songLibSearchInput" type="text" placeholder="搜索歌名（可输入拼音首字母，如 qydn）" enterkeyhint="search" oninput="onSongLibrarySearch()" onkeydown="onSongLibSearchKey(event)" onfocus="songLibSuggShow()" onblur="songLibSuggHideSoon()" onchange="songLibRecordSearch(this.value)" autocomplete="off">
+        <button type="button" class="sl-scope-btn" id="slScopeBtn" onclick="slScopeToggle(event)" aria-haspopup="menu" aria-expanded="false" aria-label="搜索来源与范围"><span id="slScopeLbl">诗歌库</span><i class="ti ti-chevron-down"></i></button>
+        <div class="sl-scope-menu" id="slScopeMenu" role="menu">
+          <div class="sl-scope-sec sl-scope-srcsec">
+            <div class="sl-scope-h">搜索来源</div>
+            <button type="button" role="menuitemradio" data-src="lib" onclick="slScopePickSrc('lib')"><i class="ti ti-books"></i><span>诗歌库<small>本库收录的歌</small></span><i class="ti ti-check sl-ck"></i></button>
+            <button type="button" role="menuitemradio" data-src="all" onclick="slScopePickSrc('all')"><i class="ti ti-world-search"></i><span>全部<small>诗歌本 + 赞美网</small></span><i class="ti ti-check sl-ck"></i></button>
+            <button type="button" role="menuitemradio" data-src="hymn" onclick="slScopePickSrc('hymn')"><i class="ti ti-book-2"></i><span>诗歌本</span><i class="ti ti-check sl-ck"></i></button>
+            <button type="button" role="menuitemradio" data-src="azm" onclick="slScopePickSrc('azm')"><i class="ti ti-world"></i><span>赞美网</span><i class="ti ti-check sl-ck"></i></button>
+          </div>
+          <div class="sl-scope-sec sl-scope-fldsec">
+            <div class="sl-scope-h">搜索范围<em>仅诗歌库</em></div>
+            <button type="button" role="menuitemradio" data-fld="all" onclick="slScopePickFld('all')"><i class="ti ti-search"></i><span>全部<small>歌名、歌词、标签、歌手等</small></span><i class="ti ti-check sl-ck"></i></button>
+            <button type="button" role="menuitemradio" data-fld="title" onclick="slScopePickFld('title')"><i class="ti ti-typography"></i><span>歌名<small>含拼音首字母</small></span><i class="ti ti-check sl-ck"></i></button>
+            <button type="button" role="menuitemradio" data-fld="lyrics" onclick="slScopePickFld('lyrics')"><i class="ti ti-align-left"></i><span>歌词<small>至少输入 2 个字</small></span><i class="ti ti-check sl-ck"></i></button>
+            <button type="button" role="menuitemradio" data-fld="tag" onclick="slScopePickFld('tag')"><i class="ti ti-tag"></i><span>标签</span><i class="ti ti-check sl-ck"></i></button>
+          </div>
+        </div>
+        <input class="song-lib-search-input" id="songLibSearchInput" type="text" placeholder="搜歌名、歌词、标签" enterkeyhint="search" oninput="onSongLibrarySearch()" onkeydown="onSongLibSearchKey(event)" onfocus="songLibSuggShow()" onblur="songLibSuggHideSoon()" onchange="songLibRecordSearch(this.value)" autocomplete="off">
         <button class="song-lib-search-clear" id="songLibSearchClear" onclick="clearSongLibrarySearch()"><i class="ti ti-x"></i></button>
         <button class="song-lib-search-go" id="songLibSearchGo" type="button" onclick="onSongLibSearchGo()">搜索</button>
         <div class="song-lib-sugg" id="songLibSugg"></div>
@@ -552,7 +574,7 @@
     </div>
   </div>
   <div class="np-slide-panel" id="npLyricsPanel">
-    <div class="np-slide-panel-head"><span>完整歌词</span><button onclick="toggleNowPlayingLyrics()" aria-label="关闭"><i class="ti ti-x"></i></button></div>
+    <div class="np-slide-panel-head"><span>完整歌词</span><div class="np-head-btns"><button type="button" class="np-copy-btn" onclick="copyNowPlayingLyrics()" aria-label="复制歌词"><i class="ti ti-copy"></i>复制</button><button onclick="toggleNowPlayingLyrics()" aria-label="关闭"><i class="ti ti-x"></i></button></div></div>
     <div class="np-slide-panel-body" id="npLyricsPanelBody"></div>
   </div>
   <div class="np-slide-panel" id="npTransposePanel">
@@ -713,7 +735,7 @@
     <button type="button" class="lightbox-nav next" id="lightboxNext" aria-label="下一首"><i class="ti ti-chevron-right"></i></button>
   </div>
   <aside class="lightbox-lyrics" id="lightboxLyrics">
-    <div class="lightbox-lyrics-h" id="lightboxLyricsTitle"></div>
+    <div class="lightbox-lyrics-h"><span id="lightboxLyricsTitle"></span><button type="button" class="lb-lyrics-copy" onclick="lightboxCopyLyrics()" title="复制歌词" aria-label="复制歌词"><i class="ti ti-copy"></i>复制</button></div>
     <div class="lightbox-lyrics-body" id="lightboxLyricsBody"></div>
   </aside>
   </div>
@@ -791,13 +813,14 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261232"></script>
+<script defer src="app.js?v=20261242"></script>
+<script defer src="hymnmusic.js?v=20261234"></script>
 <script defer src="offline.js?v=20261129"></script>
 <script defer src="export-pdf.js?v=20261129"></script>
 <script defer src="suggest.js?v=20261228"></script>
 <script defer src="review.js?v=20261229"></script>
 <script defer src="fix.js?v=20261226"></script>
 <script defer src="elder.js?v=20261211"></script>
-<script defer src="homeui.js?v=20261228"></script>
+<script defer src="homeui.js?v=20261230"></script>
 </body>
 </html>
