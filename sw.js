@@ -3,7 +3,7 @@
  *      2) 谱图优先读「离线歌谱包」里已缓存的图片（缓存由页面里的「离线与备份」下载）
  * 注意：不会拦截 Supabase 的接口请求，数据永远走网络；离线时页面自己读本机缓存。
  */
-const VER = 'v48';   // 改了页面文件就把它加一，旧缓存会在 activate 时清掉
+const VER = 'v51';   // 改了页面文件就把它加一，旧缓存会在 activate 时清掉
 const SHELL = 'songlib-shell-' + VER;     // 页面本身（index.html / styles.css / app.js …）
 const LIBS = 'songlib-libs-v1';           // CDN 上的库 / 图标字体（版本已锁定，缓存后不再变）
 const AUDIO = 'songlib-audio-v1';         // 「我的歌单」离线音频（由页面写入，这里只读；升级时不能删）

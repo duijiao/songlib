@@ -429,6 +429,8 @@ input[type="file"] { display: none; }
 .song-lib-search-go:active { transform: scale(0.97); }
 .song-lib-foot-note { margin-top: auto; padding-top: 22px; font-size: 12px; color: var(--text-4); text-align: center; flex-shrink: 0; }
 .song-lib-page.ds-mode .song-lib-foot-note { display: none; }
+.song-lib-foot-note:empty { display: none; }
+.song-lib-foot-note.warn { color: #b7791f; }
 .song-lib-main > * { flex-shrink: 0; }
 mark.song-lib-hl { background: var(--primary-light); color: var(--primary); font-weight: 700; border-radius: 3px; padding: 0 1px; }
 .song-lib-add-btn {
@@ -2126,3 +2128,11 @@ html.elder .sl-more-wrap { display: none !important; }
 .skel-wk-lead { display: flex; flex-direction: column; gap: 8px; padding: 2px 14px 10px; }
 .skel-wk-n { flex: none; width: 26px; height: 26px; border-radius: 50%; }
 .song-lib-weekhead-l .skel-block { display: inline-block; vertical-align: middle; margin-right: 8px; }
+
+.wg-t { flex: 1; }
+.wg-key { flex: none; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--primary); background: var(--primary-light); border-radius: 6px; padding: 1px 6px; }
+/* 2×2 一格很窄：歌名至少留 3 个字，调名过长时截断 */
+.wg-item { gap: 6px; overflow: hidden; }
+.wg-t { min-width: 3em; }
+.wg-key { max-width: 40px; }
+.wg-tc { font-size: 11px; padding: 1px 5px; }

@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.34.0/dist/tabler-icons.min.css">
-<link rel="stylesheet" href="styles.css?v=20261244">
+<link rel="stylesheet" href="styles.css?v=20261247">
 <link rel="stylesheet" href="elder.css?v=20261220">
 <script>try{var q=new URLSearchParams(location.search).get("elder"),v=(q==="1"||q==="0")?q:localStorage.getItem("songlibElder");if(v==="1"){var h=document.documentElement;h.classList.add("elder");var n=+localStorage.getItem("songlibElderScale")||0;h.style.setProperty("--es",[1,1.15,1.3][n]||1)}}catch(e){}</script>
 </head>
@@ -167,7 +167,7 @@
           <div class="song-lib-ds-list view-wf" id="songLibBkSongs"></div>
         </section>
       </div>
-      <div class="song-lib-foot-note">收录历史使用过的诗歌，点击可查看使用记录</div>
+      <div class="song-lib-foot-note" id="songLibFootNote" aria-live="polite"></div>
       <a class="ds-promo" id="dsPromo" href="https://duijiao.github.io/songs/" target="_blank" rel="noopener">
         <span class="ds-promo-ico"><i class="ti ti-world-search"></i></span>
         <span class="ds-promo-txt">体验完整专属搜索请前往“专属歌谱搜索”工具体验<small>点击跳转 →</small></span>
@@ -813,7 +813,7 @@
 <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" onerror="var f=document.createElement('script');f.src='https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js';document.head.appendChild(f)"></script>
-<script defer src="app.js?v=20261242"></script>
+<script defer src="app.js?v=20261245"></script>
 <script defer src="hymnmusic.js?v=20261234"></script>
 <script defer src="offline.js?v=20261129"></script>
 <script defer src="export-pdf.js?v=20261129"></script>

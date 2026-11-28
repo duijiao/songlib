@@ -2415,7 +2415,11 @@ function slWkMenuToggle(e){
 }
 function slWkMenuGo(act){
   slWkMenuClose();
-  if (act === 'recent') setSongLibTab('recent');
+  if (act === 'score') {   // 把本周所有带谱的歌做成一个大图查看器，左右滑着一首接一首看
+    const list = songLibWeekLbList(songLibCurWeekKey());
+    if (list.length) openLightboxWithList(list, 0); else showToast('本周的歌还没有谱子');
+  }
+  else if (act === 'recent') setSongLibTab('recent');
   else if (act === 'layout') setSongLibWeekLayout(songLibWeekLayout === 'grid' ? 'thumb' : 'grid');
   else if (act === 'edit') songLibPickWeekSongs();
 }
@@ -2456,12 +2460,14 @@ function songLibRenderWeekCard(){
     const elderOn = document.documentElement.classList.contains('elder');   // 长辈模式有自己的竖排样式，不用 2×2
     const layout = !elderOn && songLibWeekLayout === 'grid' ? 'grid' : 'thumb';
     // 右上角只留「分享」和「⋯」；最近使用 / 切换样式 / 修改本周选歌 都收进「⋯」菜单
+    const hasScores = songLibWeekLbList(key).length > 0;   // 本周至少有一首带谱子，才出现「按顺序看谱」
     const more = `<span class="sl-wkm-wrap"><button class="song-lib-weekedit share sl-wkm-btn" type="button" title="更多" aria-label="更多" aria-haspopup="menu" aria-expanded="false" onclick="slWkMenuToggle(event)"><i class="ti ti-dots"></i></button><span class="sl-wkm" id="slWkMenu" role="menu" hidden>`
+      + (hasScores ? `<button type="button" role="menuitem" onclick="slWkMenuGo('score')"><i class="ti ti-slideshow"></i>按顺序看谱</button>` : '')
       + `<button type="button" role="menuitem" onclick="slWkMenuGo('recent')"><i class="ti ti-history"></i>最近使用</button>`
       + `<button type="button" role="menuitem" onclick="slWkMenuGo('layout')"><i class="ti ${layout === 'grid' ? 'ti-photo' : 'ti-list-numbers'}"></i>${layout === 'grid' ? '切换为缩略图样式' : '切换为 2×2 样式'}</button>`
       + (isAdmin ? `<button type="button" role="menuitem" onclick="slWkMenuGo('edit')"><i class="ti ti-pencil"></i>修改本周选歌</button>` : '')
       + `</span></span>`;
-    host.innerHTML = songLibRecentCardHtml({ key, curKey: key, items, extraHead: share + more, leadHtml, layout });
+    host.innerHTML = songLibRecentCardHtml({ key, curKey: key, items, extraHead: share + more, leadHtml, layout, hero: true });
     return;
   }
   const d = new Date(key + 'T00:00:00');
@@ -2631,6 +2637,8 @@ function songLibRecentWeekTitle(key, curKey){
 function songLibRecentCardHtml(w){
   const d = new Date(w.key + 'T00:00:00');
   const title = songLibRecentWeekTitle(w.key, w.curKey);
+  // 首页「本周」卡片（w.hero）：点歌名 / 整行直接打开大图看谱，在本周所有歌之间左右切换；其他地方（最近使用）仍然进歌曲详情
+  const openFn = w.hero ? 'songLibRecentOpenScore' : 'songLibRecentOpenDetail';
   const items = w.items.map(({ s, i }) => {
     const thumb = s.src
       ? `<img src="${s.src}" alt="${escapeHtml(s.title)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
@@ -2640,7 +2648,7 @@ function songLibRecentCardHtml(w){
     const tcBadge = s.teach ? '<span class="tc-badge"><i class="ti ti-school"></i>教歌</span>' : '';
     return `<div class="song-lib-weekitem">
       <div class="song-lib-weekthumb${s.src ? ' has-img' : ''}"${clickable}>${thumb}${tcBadge}${mkBadge}</div>
-      <div class="song-lib-weeksong" title="${escapeHtml(s.title)}" onclick="songLibRecentOpenDetail('${w.key}',${i})">${highlightKeyword(s.title, songLibSearchKeyword)}</div>
+      <div class="song-lib-weeksong" title="${escapeHtml(s.title)}" onclick="${openFn}('${w.key}',${i})">${highlightKeyword(s.title, songLibSearchKeyword)}</div>
     </div>`;
   }).join('');
   const teachItems = w.items.filter(x => x.s.teach);
@@ -2648,9 +2656,16 @@ function songLibRecentCardHtml(w){
     teachItems.map(({ s, i }) => `<button type="button" class="song-lib-teachchip" onclick="songLibRecentOpenDetail('${w.key}',${i})">${escapeHtml(s.title)}</button>`).join('')
   }</div>` : '';
   const asGrid = w.layout === 'grid';   // 首页本周卡片可选「2×2 序号」样式；默认仍是缩略图
-  const gridHtml = asGrid ? `<div class="song-lib-weekgrid">${w.items.map(({ s, i }, n) =>
-    `<button type="button" class="wg-item" title="${escapeHtml(s.title)}" onclick="songLibRecentOpenDetail('${w.key}',${i})"><span class="wg-n">${n + 1}</span><span class="wg-t">${highlightKeyword(s.title, songLibSearchKeyword)}</span>${s.teach ? '<span class="wg-tc">教歌</span>' : ''}</button>`
-  ).join('')}</div>` : '';
+  // 调：这周选用的那张谱对应的调；对不上就取这首歌的第一个调；没填调名就不显示
+  const keyOf = s => {
+    const e = findSongLibEntryByTitle(s.title), ks = e && Array.isArray(e.keys) ? e.keys.filter(Boolean) : [];
+    const k = (s.src && ks.find(x => x.src === s.src)) || ks[0];
+    return k && k.label ? String(k.label).trim() : '';
+  };
+  const gridHtml = asGrid ? `<div class="song-lib-weekgrid">${w.items.map(({ s, i }, n) => {
+    const kl = keyOf(s);
+    return `<button type="button" class="wg-item" title="${escapeHtml(s.title)}${kl ? '（' + escapeHtml(kl) + '）' : ''}" onclick="${openFn}('${w.key}',${i})"><span class="wg-n">${n + 1}</span><span class="wg-t">${highlightKeyword(s.title, songLibSearchKeyword)}</span>${s.teach ? '<span class="wg-tc">教歌</span>' : ''}${kl ? `<span class="wg-key">${escapeHtml(kl)}</span>` : ''}</button>`;
+  }).join('')}</div>` : '';
   return `<section class="song-lib-weekcard${w.key === w.curKey ? ' current' : ''}">
     <div class="song-lib-weekhead">
       <div class="song-lib-weekhead-l"><span class="song-lib-weektitle">${title}</span><span class="song-lib-weekdate">${d.getMonth()+1}月${d.getDate()}日</span><span class="song-lib-weekcount">· ${w.items.length} 首</span></div>
@@ -2668,6 +2683,11 @@ function songLibRecentOpenImage(key, i){
   const raw = songData[key] || [];
   const list = songLibWeekLbList(key);
   openLightboxWithList(list, Math.max(0, list.findIndex(x => x.markOwner === raw[i])));
+}
+// 点歌名（首页本周卡片）：有谱就直接看谱，大图里可切换到本周其他歌；没谱才退回歌曲详情
+function songLibRecentOpenScore(key, i){
+  const s = (songData[key] || [])[i];
+  if (s && s.src) songLibRecentOpenImage(key, i); else songLibRecentOpenDetail(key, i);
 }
 // 点歌名：诗歌库里有这首歌就打开详情
 function songLibRecentOpenDetail(key, i){
@@ -4454,7 +4474,7 @@ function songLibDismissStaleHint(e){
 }
 
 // ── 搜索历史 / 热门搜索 ──────────────────────────────────────
-// 历史只存在本机（localStorage）。「热门」= 本机搜得最多的词；不够时用今年全堂最常唱的歌补上。
+// 「最近搜索」只存在本机（localStorage）；「本堂常唱」= 全堂使用次数最多的歌（见 songLibHotTerms）。
 const LS_SEARCH_HIST = 'songLibSearchHist';
 let songLibSearchHist = [];       // [{ q, n, t }]
 try { const a = JSON.parse(localStorage.getItem(LS_SEARCH_HIST) || '[]'); if (Array.isArray(a)) songLibSearchHist = a.filter(x => x && typeof x.q === 'string' && x.q).slice(0, 40); } catch (e) { slDiag(e, 'songLibSearchHist'); }
@@ -4476,16 +4496,19 @@ function songLibRecordSearch(q){
   if (songLibSearchHist.length > 40) songLibSearchHist.length = 40;
   persistSongLibSearchHist();
 }
+// 「本堂常唱」：全堂使用次数最多的歌（跟登录与否、本机搜过什么都无关，每个人看到的一样）
+function songLibHotReady(){
+  if (songLibWeekDataState !== 'ok') return false;   // 使用记录还没读到时不显示，否则排行是空的 / 不准
+  return Object.keys(songData || {}).some(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && (songData[k] || []).some(x => x && x.title));
+}
 function songLibHotTerms(){
-  const out = [], seen = new Set();
-  songLibSearchHist.filter(x => (x.n || 1) >= 2).sort((a, b) => (b.n - a.n) || (b.t - a.t)).slice(0, 8)
-    .forEach(x => { out.push({ q: x.q, n: x.n }); seen.add(x.q.toLowerCase()); });
-  if (out.length < 6 && songLibStaleReady()) {   // 补：今年最常唱的歌
-    const st = songLibUsageStats();
-    songLibrary.map(s => ({ q: s.title, c: (st.get((s.title || '').trim()) || {}).count || 0 })).filter(x => x.c > 0)
-      .sort((a, b) => b.c - a.c).forEach(x => { if (out.length < 8 && !seen.has(x.q.toLowerCase())) { out.push({ q: x.q, song: true }); seen.add(x.q.toLowerCase()); } });
-  }
-  return out;
+  if (!songLibHotReady()) return [];
+  const st = songLibUsageStats();
+  return songLibrary.map(s => ({ q: (s.title || '').trim(), c: (st.get((s.title || '').trim()) || {}).count || 0 }))
+    .filter(x => x.q && x.c > 0)
+    .sort((a, b) => b.c - a.c)
+    .slice(0, 8)
+    .map(x => ({ q: x.q, song: true }));
 }
 function songLibSuggRender(){
   const box = document.getElementById('songLibSugg'); if (!box) return false;
@@ -4493,7 +4516,7 @@ function songLibSuggRender(){
   if (!hist.length && !hot.length) { box.innerHTML = ''; return false; }
   const chip = (q, extra) => `<button type="button" class="sugg-chip" data-q="${escapeHtml(q)}">${extra || ''}${escapeHtml(q)}</button>`;
   box.innerHTML =
-    (hist.length ? `<div class="sugg-head"><span><i class="ti ti-history"></i>搜索历史</span><button type="button" class="sugg-clear" data-act="clear">清空</button></div>
+    (hist.length ? `<div class="sugg-head"><span><i class="ti ti-history"></i>最近搜索</span><button type="button" class="sugg-clear" data-act="clear">清空</button></div>
       <div class="sugg-row">${hist.map(x => `<span class="sugg-item">${chip(x.q)}<button type="button" class="sugg-x" data-del="${escapeHtml(x.q)}" aria-label="删除这条历史"><i class="ti ti-x"></i></button></span>`).join('')}</div>` : '')
     + (hot.length ? `<div class="sugg-head"><span><i class="ti ti-flame"></i>热门搜索</span></div>
       <div class="sugg-row">${hot.map((x, i) => chip(x.q, `<b class="sugg-rank${i < 3 ? ' top' : ''}">${i + 1}</b>`)).join('')}</div>` : '');
@@ -6288,9 +6311,41 @@ async function loadRemoteSongState() {
   songLibCacheRemoteState();   // 存一份到本机，离线打开时「本周诗歌 / 最近使用」才有内容
   return true;
 }
+// ── 页脚状态：数据更新时间 / 离线提示 ──
+const LS_SYNCED_AT = 'songLibSyncedAt';
+let songLibSyncFail = false;   // 在线但读云端失败
+function songLibMarkSynced() {
+  songLibSyncFail = false;
+  try { localStorage.setItem(LS_SYNCED_AT, String(Date.now())); } catch (e) { slDiag(e, 'songLibMarkSynced'); }
+  songLibFootNoteRender();
+}
+function songLibSyncedText() {
+  let t = 0; try { t = Number(localStorage.getItem(LS_SYNCED_AT)) || 0; } catch (e) { /* 忽略 */ }
+  if (!t) return '';
+  const d = new Date(t), now = new Date();
+  const hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  const day0 = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day0(now) - day0(d)) / 86400000);
+  const when = diff === 0 ? '今天' : diff === 1 ? '昨天' : `${d.getMonth() + 1}月${d.getDate()}日`;
+  return `${when} ${hm}`;
+}
+function songLibFootNoteRender() {
+  const el = document.getElementById('songLibFootNote'); if (!el) return;
+  const at = songLibSyncedText();
+  const offline = navigator.onLine === false;
+  let msg = '', warn = false;
+  if (offline) { msg = at ? `📴 离线中 · 显示的是 ${at} 的内容` : '📴 离线中 · 显示的是上次联网时的内容'; warn = true; }
+  else if (songLibSyncFail) { msg = at ? `⚠️ 连不上云端 · 显示的是 ${at} 的内容` : '⚠️ 连不上云端 · 显示的是本机缓存'; warn = true; }
+  else if (at) msg = `数据更新于 ${at}`;
+  el.textContent = msg;
+  el.classList.toggle('warn', warn);
+}
+window.addEventListener('online', songLibFootNoteRender);
+window.addEventListener('offline', songLibFootNoteRender);
 // ── 使用记录 / 排班的本机缓存：每次成功读到云端就更新；没网时启动页面用它 ──
 const LS_SONG_DATA_CACHE = 'songLibSongDataCache', LS_SCHEDULE_CACHE = 'songLibScheduleCache';
 function songLibCacheRemoteState() {
+  songLibMarkSynced();
   try { localStorage.setItem(LS_SONG_DATA_CACHE, JSON.stringify(songData)); }
   catch (e) {
     try {   // 太大存不下（涂改笔迹多）：只存歌名和谱图地址
@@ -7127,7 +7182,7 @@ const OB_STEPS = [
   { part: '认识首页', title: '本周诗歌卡片', target: '#songLibWeekHost', state: { tab: 'all' },
     text: '首页最上面是<b>本周主日的诗歌</b>：按顺序排成 2×2（可在右上角「⋯」里切换成谱子缩略图）；有排班的话还会显示<b>主领</b>（请假的人会被划掉）。点歌名看歌曲详情和谱子（缩略图样式下点缩略图可<b>放大看谱</b>）。<br>搜索或筛选时这张卡片会自动收起。' },
   { part: '认识首页', title: '分享 / 更多', target: () => document.querySelector('#songLibWeekHost .song-lib-weekhead-r') || document.getElementById('songLibWeekHost'), state: { tab: 'all' },
-    text: '<b>⋯</b>：里面有<b>最近使用</b>（按周看本月唱过的歌）、<b>切换样式</b>（2×2 / 缩略图）；管理员还有<b>修改本周选歌</b>。<br><b>分享</b>：生成「本周诗歌」海报，可保存图片、复制文字、复制链接，别人点链接就能看本周歌谱；海报窗口里还有<b>发谱子</b>，把每首歌的谱子拆成独立图片，一键发到微信群。' },
+    text: '<b>⋯</b>：里面有<b>按顺序看谱</b>（把本周的谱子连起来，左右滑着看）、<b>最近使用</b>（按周看本月唱过的歌）、<b>切换样式</b>（2×2 / 缩略图）；管理员还有<b>修改本周选歌</b>。<br><b>分享</b>：生成「本周诗歌」海报，可保存图片、复制文字、复制链接，别人点链接就能看本周歌谱；海报窗口里还有<b>发谱子</b>，把每首歌的谱子拆成独立图片，一键发到微信群。' },
 
   // ── ② 搜索诗歌 ──
   { part: '搜索诗歌', title: '搜歌：输入歌名', target: '#songLibSearchWrap', state: { tab: 'all', search: '' }, type: 'main',
@@ -7605,6 +7660,7 @@ async function bootstrapSongLibPage() {
   loadSongLibTags();
   loadSongLibSupabaseConfig();
   const hadLocalState = songLibRestoreRemoteStateCache();   // 上次联网时存下的使用记录，没信号也能显示本周诗歌
+  songLibFootNoteRender();
   songLibSkelWait = songLibrary.length === 0;   // 本机没有缓存：骨架一直显示到云端数据回来
   songLibWeekDataState = 'pending';             // 云端数据回来前，本周卡片先显示骨架，免得误报「暂未选歌」
   openSongLibrary();                      // 先显示骨架，再用本机缓存 / 云端数据画出页面
@@ -7619,6 +7675,7 @@ async function bootstrapSongLibPage() {
     } catch (e) {
       console.error('读取云端诗歌库失败，先用本机缓存', e);
       songLibWeekDataState = hadLocalState ? 'ok' : 'fail';
+      songLibSyncFail = true; songLibFootNoteRender();
       songLibReleaseSkeleton();
       renderSongLibraryGrid();
       showToast(navigator.onLine === false ? '📴 当前离线，显示的是上次联网时的内容' : '⚠️ 连不上云端，正在显示本机缓存', 3500);
